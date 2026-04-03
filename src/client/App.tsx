@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useForecast } from "./hooks/useForecast";
 import { Header } from "./components/Header";
 import { DayView } from "./components/DayView";
@@ -14,35 +14,31 @@ function formatDayLabel(dateStr: string, index: number): string {
 export function App() {
   const { days, lastFetch, loading, error, refresh } = useForecast();
   const [dayIndex, setDayIndex] = useState(0);
+  const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
+  const [animating, setAnimating] = useState(false);
+  const swipeStartX = useRef(0);
 
-  // Swipe state
-  const touchStartX = useCallback((e: React.TouchEvent) => {
-    return e.touches[0].clientX;
-  }, []);
-
-  const swipeState = { startX: 0 };
-
-  function handleTouchStart(e: React.TouchEvent) {
-    swipeState.startX = e.touches[0].clientX;
+  function navigateTo(newIndex: number) {
+    if (newIndex === dayIndex || newIndex < 0 || newIndex >= days.length || animating) return;
+    setSlideDir(newIndex > dayIndex ? "left" : "right");
+    setAnimating(true);
+    setTimeout(() => {
+      setDayIndex(newIndex);
+      setSlideDir(null);
+      setAnimating(false);
+    }, 200);
   }
 
-  function handleTouchMove(_e: React.TouchEvent) {
-    // track but don't prevent default — allow scroll
+  function handleTouchStart(e: React.TouchEvent) {
+    swipeStartX.current = e.touches[0].clientX;
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    const endX = e.changedTouches[0].clientX;
-    const delta = swipeState.startX - endX;
+    const delta = swipeStartX.current - e.changedTouches[0].clientX;
     if (Math.abs(delta) < 50) return;
-    if (delta > 0 && dayIndex < days.length - 1) {
-      setDayIndex((i) => i + 1);
-    } else if (delta < 0 && dayIndex > 0) {
-      setDayIndex((i) => i - 1);
-    }
+    if (delta > 0) navigateTo(dayIndex + 1);
+    else navigateTo(dayIndex - 1);
   }
-
-  // suppress unused warning — touchStartX is used inline
-  void touchStartX;
 
   if (loading) {
     return (
@@ -90,7 +86,6 @@ export function App() {
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: "100dvh" }}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       <Header lastFetch={lastFetch} onRefresh={refresh} />
@@ -105,8 +100,8 @@ export function App() {
         }}
       >
         <button
-          onClick={() => setDayIndex((i) => Math.max(0, i - 1))}
-          disabled={dayIndex === 0}
+          onClick={() => navigateTo(dayIndex - 1)}
+          disabled={dayIndex === 0 || animating}
           style={{
             background: "none",
             border: "none",
@@ -126,8 +121,8 @@ export function App() {
         </div>
 
         <button
-          onClick={() => setDayIndex((i) => Math.min(days.length - 1, i + 1))}
-          disabled={dayIndex === days.length - 1}
+          onClick={() => navigateTo(dayIndex + 1)}
+          disabled={dayIndex === days.length - 1 || animating}
           style={{
             background: "none",
             border: "none",
@@ -147,7 +142,7 @@ export function App() {
         {days.map((_, i) => (
           <button
             key={i}
-            onClick={() => setDayIndex(i)}
+            onClick={() => navigateTo(i)}
             style={{
               width: "8px",
               height: "8px",
@@ -163,8 +158,17 @@ export function App() {
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1 }}>
-        <DayView key={currentDay.date} day={currentDay} isToday={dayIndex === 0} />
+      <div style={{
+        flex: 1,
+        overflow: "hidden",
+      }}>
+        <div style={{
+          transition: animating ? "transform 0.2s ease-out, opacity 0.2s ease-out" : "none",
+          transform: slideDir === "left" ? "translateX(-30%)" : slideDir === "right" ? "translateX(30%)" : "translateX(0)",
+          opacity: animating ? 0 : 1,
+        }}>
+          <DayView key={currentDay.date} day={currentDay} isToday={dayIndex === 0} />
+        </div>
       </div>
     </div>
   );
