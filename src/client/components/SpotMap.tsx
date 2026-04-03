@@ -3,16 +3,14 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./SpotMap.css";
 
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+function createSpotIcon() {
+  return L.divIcon({
+    className: "spot-marker",
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor: [0, -10],
+  });
+}
 
 const SPOTS = [
   { name: "Teleng Ria", lat: -8.2260, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly" },
@@ -46,7 +44,7 @@ export function SpotMap() {
     ).addTo(map);
 
     markersRef.current = SPOTS.map((spot) => {
-      const marker = L.marker([spot.lat, spot.lng]).addTo(map);
+      const marker = L.marker([spot.lat, spot.lng], { icon: createSpotIcon() }).addTo(map);
       marker.bindPopup(`<strong>${spot.name}</strong><br>${spot.desc}`);
       return marker;
     });

@@ -17,19 +17,29 @@
 
   .spot-btn {
     background: var(--bg-card);
+    backdrop-filter: var(--card-blur);
+    -webkit-backdrop-filter: var(--card-blur);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-pill);
     padding: 0.4rem 0.9rem;
     color: var(--text);
+    font-family: var(--font-display);
     font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    box-shadow: var(--card-shadow);
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
 
     &.active {
       background: var(--accent);
       border-color: var(--accent);
       color: #0a1628;
+      font-weight: 600;
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
   }
 
@@ -37,21 +47,37 @@
     height: 250px;
     width: 100%;
 
+    /* Custom marker styling */
+    .spot-marker {
+      background: var(--accent);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+
     /* Override Leaflet popup styles for dark theme */
     .leaflet-popup-content-wrapper {
-      background: var(--bg-card);
+      background: var(--bg-card-solid);
       color: var(--text);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .leaflet-popup-content {
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      margin: 0.6rem 0.8rem;
     }
 
     .leaflet-popup-tip {
-      background: var(--bg-card);
+      background: var(--bg-card-solid);
     }
 
     .leaflet-popup-close-button {
-      color: var(--text-muted);
+      color: var(--text-dim);
 
       &:hover {
         color: var(--text);
