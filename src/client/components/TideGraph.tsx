@@ -69,19 +69,29 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
           stroke: "#5a7a9a",
           grid: { stroke: "#132840", width: 1 },
           ticks: { stroke: "#1a3050" },
+          incrs: [3 * 3600],
           values: (_u, splits) =>
             splits.map((s) => {
               const h = Math.round(s / 3600);
-              return h % 6 === 0 ? `${String(h).padStart(2, "0")}:00` : "";
+              return `${String(h).padStart(2, "0")}:00`;
             }),
         },
         {
-          // Y axis — tide height in meters
+          // Y axis — simplified High/Low
           stroke: "#5a7a9a",
           grid: { stroke: "#1a3050", width: 1 },
-          ticks: { stroke: "#1a3050" },
-          values: (_u, splits) => splits.map((s) => `${s.toFixed(1)}m`),
-          size: 42,
+          ticks: { show: false },
+          values: (_u, splits) => {
+            if (splits.length < 2) return splits.map(() => "");
+            const min = Math.min(...splits);
+            const max = Math.max(...splits);
+            return splits.map((s) => {
+              if (s === max) return "High";
+              if (s === min) return "Low";
+              return "";
+            });
+          },
+          size: 36,
         },
       ],
       series: [
