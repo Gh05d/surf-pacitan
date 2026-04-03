@@ -41,6 +41,7 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 - No inline styles in React components — use co-located `.css` files with CSS nesting.
 - TideGraph canvas drawing code (`hooks.draw`) uses Canvas API, not React styles — don't try to extract those to CSS.
+- The swipe handler in `App.tsx` excludes `.spot-map` via `closest()` check. Any new interactive component with its own touch handling needs the same exclusion.
 - Use relative imports (`../shared/types`, `./config`), not `@shared/*` path aliases — `bun test` doesn't resolve tsconfig paths.
 - StormGlass wind is **m/s**, app uses **km/h** — conversion in `stormglass.ts`. Open-Meteo wind is already km/h.
 - All StormGlass timestamps are UTC. Parsers convert to UTC+7 (Asia/Jakarta) for local time.
