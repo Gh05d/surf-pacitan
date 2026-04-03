@@ -17,6 +17,52 @@
   & .tide-graph-container {
     width: 100%;
   }
+
+  & .spot-bands {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 0.4rem 0 0.25rem;
+    border-top: 1px solid var(--border);
+    margin-top: 0.25rem;
+  }
+
+  & .spot-band-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  & .spot-band-label {
+    color: var(--text-dim);
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    width: 64px;
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  & .spot-band-bar {
+    display: flex;
+    flex: 1;
+    gap: 1px;
+    height: 10px;
+  }
+
+  & .spot-band-seg {
+    flex: 1;
+    border-radius: 2px;
+    background: rgba(15, 32, 53, 0.4);
+
+    &.green {
+      background: rgba(45, 212, 168, 0.55);
+    }
+
+    &.yellow {
+      background: rgba(240, 168, 48, 0.4);
+    }
+  }
 }
 
 @media (min-width: 768px) {
