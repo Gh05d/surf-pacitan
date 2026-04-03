@@ -2,7 +2,11 @@ import Redis from "ioredis";
 import type { ForecastDay } from "../shared/types";
 import { REDIS_KEY_PREFIX, REDIS_META_KEY, REDIS_QUOTA_KEY, CACHE_TTL_SECONDS } from "./config";
 
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+const redis = new Redis({
+  host: process.env.REDIS_HOST || "127.0.0.1",
+  port: parseInt(process.env.REDIS_PORT || "6379", 10),
+  password: process.env.REDIS_PASSWORD || undefined,
+});
 
 export async function getCachedDay(date: string): Promise<ForecastDay | null> {
   const raw = await redis.get(`${REDIS_KEY_PREFIX}${date}`);
