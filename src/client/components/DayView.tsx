@@ -116,6 +116,12 @@ export function DayView({ day, isToday }: DayViewProps) {
             className="daylight-fill"
             style={{ left: `${sunrisePercent}%`, width: `${daylightWidth}%` }}
           />
+          {isToday && (() => {
+            const now = new Date();
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+            const nowPercent = (nowMin / (24 * 60)) * 100;
+            return <div className="daylight-now" style={{ left: `${nowPercent}%` }} />;
+          })()}
         </div>
       </div>
 
