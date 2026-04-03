@@ -60,7 +60,7 @@ export function DayView({ day, isToday }: DayViewProps) {
           style={{
             position: "relative",
             height: "6px",
-            background: "#1e293b",
+            background: "#0f2035",
             borderRadius: "3px",
             overflow: "hidden",
           }}
@@ -71,7 +71,7 @@ export function DayView({ day, isToday }: DayViewProps) {
               left: `${sunrisePercent}%`,
               width: `${daylightWidth}%`,
               height: "100%",
-              background: "linear-gradient(90deg, #f59e0b, #fbbf24)",
+              background: "linear-gradient(90deg, #d9534f, #f59e42, #f0a830)",
               borderRadius: "3px",
             }}
           />

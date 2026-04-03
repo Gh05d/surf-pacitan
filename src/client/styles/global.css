@@ -1,16 +1,18 @@
 :root {
-  --bg: #0f172a;
-  --bg-card: #1e293b;
-  --text: #f1f5f9;
-  --text-dim: #94a3b8;
-  --green: #22c55e;
-  --green-bg: rgba(34, 197, 94, 0.15);
-  --yellow: #eab308;
-  --yellow-bg: rgba(234, 179, 8, 0.15);
-  --red: #ef4444;
-  --red-bg: rgba(239, 68, 68, 0.15);
-  --blue: #3b82f6;
-  --border: #334155;
+  --bg: #0a1628;
+  --bg-card: #0f2035;
+  --text: #e8dfd0;
+  --text-dim: #8b9bb4;
+  --green: #2dd4a8;
+  --green-bg: rgba(45, 212, 168, 0.12);
+  --yellow: #f0a830;
+  --yellow-bg: rgba(240, 168, 48, 0.12);
+  --red: #e06050;
+  --red-bg: rgba(224, 96, 80, 0.12);
+  --accent: #38bdf8;
+  --border: #1a3050;
+  --sunrise: #f59e42;
+  --sunset: #d9534f;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

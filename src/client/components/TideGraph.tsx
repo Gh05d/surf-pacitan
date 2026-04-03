@@ -11,9 +11,9 @@ interface TideGraphProps {
 }
 
 const RATING_COLORS: Record<SurfableRating, string> = {
-  green: "rgba(34, 197, 94, 0.18)",
-  yellow: "rgba(234, 179, 8, 0.18)",
-  red: "rgba(239, 68, 68, 0.18)",
+  green: "rgba(45, 212, 168, 0.18)",
+  yellow: "rgba(240, 168, 48, 0.18)",
+  red: "rgba(224, 96, 80, 0.15)",
 };
 
 function parseHHmm(hhmm: string): number {
@@ -66,9 +66,9 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
       axes: [
         {
           // X axis — hours
-          stroke: "#64748b",
-          grid: { stroke: "#1e293b", width: 1 },
-          ticks: { stroke: "#334155" },
+          stroke: "#5a7a9a",
+          grid: { stroke: "#132840", width: 1 },
+          ticks: { stroke: "#1a3050" },
           values: (_u, splits) =>
             splits.map((s) => {
               const h = Math.round(s / 3600);
@@ -77,9 +77,9 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
         },
         {
           // Y axis — tide height in meters
-          stroke: "#64748b",
-          grid: { stroke: "#334155", width: 1 },
-          ticks: { stroke: "#334155" },
+          stroke: "#5a7a9a",
+          grid: { stroke: "#1a3050", width: 1 },
+          ticks: { stroke: "#1a3050" },
           values: (_u, splits) => splits.map((s) => `${s.toFixed(1)}m`),
           size: 42,
         },
@@ -88,9 +88,9 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
         {}, // x (time)
         {
           label: "Tide",
-          stroke: "#3b82f6",
+          stroke: "#38bdf8",
           width: 2,
-          fill: "rgba(59, 130, 246, 0.08)",
+          fill: "rgba(56, 189, 248, 0.06)",
           spanGaps: false,
         },
       ],
@@ -117,7 +117,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
             }
 
             // --- Night overlay (before sunrise / after sunset) ---
-            const nightColor = "rgba(0, 0, 0, 0.35)";
+            const nightColor = "rgba(4, 10, 20, 0.45)";
             const sunriseX = u.valToPos(sunriseHour * 3600, "x", true);
             const sunsetX = u.valToPos(sunsetHour * 3600, "x", true);
             const yTop = u.bbox.top;
@@ -136,7 +136,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
               const nowX = u.valToPos(nowSecs, "x", true);
               if (nowX >= u.bbox.left && nowX <= u.bbox.left + u.bbox.width) {
                 ctx.save();
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.strokeStyle = "rgba(232, 223, 208, 0.7)";
                 ctx.lineWidth = 1.5;
                 ctx.setLineDash([4, 4]);
                 ctx.beginPath();
@@ -158,7 +158,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
 
               const isHigh = extreme.type === "high";
               ctx.save();
-              ctx.fillStyle = isHigh ? "#22c55e" : "#ef4444";
+              ctx.fillStyle = isHigh ? "#2dd4a8" : "#e06050";
               ctx.font = "bold 11px system-ui, sans-serif";
               ctx.textAlign = "center";
 
@@ -168,7 +168,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
 
               ctx.fillText(label, ex, ey + offsetY);
               ctx.font = "10px system-ui, sans-serif";
-              ctx.fillStyle = isHigh ? "rgba(34, 197, 94, 0.8)" : "rgba(239, 68, 68, 0.8)";
+              ctx.fillStyle = isHigh ? "rgba(45, 212, 168, 0.8)" : "rgba(224, 96, 80, 0.8)";
               ctx.fillText(heightLabel, ex, ey + offsetY + (isHigh ? -12 : 13));
               ctx.restore();
             }

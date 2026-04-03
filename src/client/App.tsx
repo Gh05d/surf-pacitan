@@ -60,7 +60,7 @@ export function App() {
         <button
           onClick={refresh}
           style={{
-            background: "var(--blue)",
+            background: "var(--accent)",
             color: "var(--text)",
             border: "none",
             borderRadius: "8px",
