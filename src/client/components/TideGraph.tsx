@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import "./TideGraph.css";
-import type { HourlyData, TideExtreme, AstronomyData, SurfableRating } from "../../../shared/types";
+import type { HourlyData, TideExtreme, AstronomyData, SurfableRating, SpotName } from "../../../shared/types";
 
 interface TideGraphProps {
   hourly: HourlyData[];
@@ -15,6 +15,18 @@ const RATING_COLORS: Record<SurfableRating, string> = {
   green: "rgba(45, 212, 168, 0.18)",
   yellow: "rgba(240, 168, 48, 0.18)",
   red: "rgba(224, 96, 80, 0.15)",
+};
+
+const SPOT_LABELS: { key: SpotName; label: string }[] = [
+  { key: "telengRia", label: "Teleng Ria" },
+  { key: "pancer", label: "Pancer" },
+  { key: "pancerDoor", label: "Pancer Door" },
+];
+
+const SPOT_BAND_COLORS: Record<SurfableRating, string> = {
+  green: "rgba(45, 212, 168, 0.5)",
+  yellow: "rgba(240, 168, 48, 0.35)",
+  red: "transparent",
 };
 
 function parseHHmm(hhmm: string): number {
@@ -37,14 +49,16 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
 
     const container = containerRef.current;
     const width = container.clientWidth || 340;
-    const height = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+    const bandSpace = 3 * (14 + 2) + 8;
+    const chartHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+    const height = chartHeight + bandSpace;
 
     // Build data arrays — x in seconds (hour * 3600), y = tide height
     const times = new Float64Array(hourly.map((h) => h.hour * 3600));
     const heights = new Float64Array(hourly.map((h) => h.tide.height));
 
     // Build a map from hour -> surfable rating for background bands
-    const ratingByHour = new Map<number, SurfableRating>(hourly.map((h) => [h.hour, h.surfable]));
+    const ratingByHour = new Map<number, SurfableRating>(hourly.map((h) => [h.hour, h.surfable.pancerDoor]));
 
     const sunriseHour = parseHHmm(astronomy.sunrise);
     const sunsetHour = parseHHmm(astronomy.sunset);
@@ -92,7 +106,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
               return "";
             });
           },
-          size: 36,
+          size: 70,
         },
       ],
       series: [
@@ -184,6 +198,40 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
               ctx.restore();
             }
 
+            // --- Per-spot surfable bands below chart ---
+            const bandHeight = 14;
+            const bandGap = 2;
+            const bandStartY = u.bbox.top + u.bbox.height + 4;
+
+            for (let si = 0; si < SPOT_LABELS.length; si++) {
+              const spotKey = SPOT_LABELS[si].key;
+              const bandY = bandStartY + si * (bandHeight + bandGap);
+
+              // Draw label
+              ctx.fillStyle = "#8b9bb4";
+              ctx.font = "10px 'Outfit', system-ui, sans-serif";
+              ctx.textAlign = "right";
+              ctx.fillText(SPOT_LABELS[si].label, u.bbox.left - 4, bandY + bandHeight - 3);
+
+              // Draw hourly segments
+              for (let hour = 0; hour < 24; hour++) {
+                const entry = hourly.find((h) => h.hour === hour);
+                if (!entry) continue;
+
+                const rating = entry.surfable[spotKey];
+                const color = SPOT_BAND_COLORS[rating];
+                if (color === "transparent") continue;
+
+                const xStart = u.valToPos(hour * 3600, "x", true);
+                const xEnd = u.valToPos((hour + 1) * 3600, "x", true);
+
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.roundRect(xStart, bandY, xEnd - xStart, bandHeight, 2);
+                ctx.fill();
+              }
+            }
+
             ctx.restore();
           },
         ],
@@ -196,7 +244,9 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
     // Resize handler
     const ro = new ResizeObserver(() => {
       if (plotRef.current && container) {
-        const newHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+        const bandSpace = 3 * (14 + 2) + 8;
+        const newChartHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+        const newHeight = newChartHeight + bandSpace;
         plotRef.current.setSize({ width: container.clientWidth, height: newHeight });
       }
     });
