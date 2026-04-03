@@ -11,7 +11,7 @@ import {
 } from "./stormglass";
 import { fetchOpenMeteoWeather, parseOpenMeteoWeather } from "./open-meteo";
 import { setCachedDay, setLastFetch, setQuotaRemaining, getCachedDay } from "./cache";
-import { computeSurfable, computeTidePercent } from "./surfable";
+import { computeAllSpotRatings, computeTidePercent } from "./surfable";
 import { LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS } from "./config";
 import type { ForecastDay, HourlyData, SwellData, WindData, WeatherData } from "../shared/types";
 
@@ -87,7 +87,7 @@ export async function fetchAndCacheTides(): Promise<void> {
         swell: { height: 0, period: 0, direction: 0 },
         wind: { speed: 0, direction: 0, gusts: 0 },
         weather: { temp: 0, condition: "clear", precipitation: 0 },
-        surfable: computeSurfable({
+        surfable: computeAllSpotRatings({
           hour: sl.hour,
           tidePercent,
           tideRising: sl.rising,
@@ -217,7 +217,7 @@ export async function fetchAndCacheWeather(): Promise<void> {
         const weather = wx ? wx.weather : h.weather;
 
         const tidePercent = computeTidePercent(h.tide.height, dailyMin, dailyMax);
-        const surfable = computeSurfable({
+        const surfable = computeAllSpotRatings({
           hour: h.hour,
           tidePercent,
           tideRising: h.tide.rising,
@@ -234,7 +234,7 @@ export async function fetchAndCacheWeather(): Promise<void> {
     } else {
       // No tide data cached yet; build from weather entries alone
       hourly = entries.map((e) => {
-        const surfable = computeSurfable({
+        const surfable = computeAllSpotRatings({
           hour: e.hour,
           tidePercent: 50, // unknown
           tideRising: false,
