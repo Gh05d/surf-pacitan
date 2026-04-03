@@ -1,0 +1,117 @@
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* Loading / error / empty states */
+.app-loading,
+.app-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+
+  & .app-loading-text {
+    color: var(--text-dim);
+    font-size: 1.1rem;
+  }
+
+  & .app-empty-text {
+    color: var(--text-dim);
+  }
+}
+
+.app-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  gap: 1rem;
+  padding: 1.5rem;
+
+  & .app-error-title {
+    color: var(--red);
+    font-size: 1.1rem;
+  }
+
+  & .app-error-detail {
+    color: var(--text-dim);
+    font-size: 0.875rem;
+  }
+
+  & .app-retry-btn {
+    background: var(--accent);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+}
+
+/* Day nav bar */
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 0.25rem;
+}
+
+.day-nav-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--text);
+  cursor: pointer;
+
+  &:disabled {
+    color: var(--border);
+    cursor: default;
+  }
+}
+
+.day-nav-label {
+  text-align: center;
+
+  & .day-nav-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  & .day-nav-date {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+  }
+}
+
+/* Dot indicators */
+.day-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.day-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  padding: 0;
+
+  &.active {
+    background: var(--text);
+  }
+}
+
+/* Slide container */
+.day-content-outer {
+  flex: 1;
+  overflow: hidden;
+}

@@ -1,0 +1,48 @@
+.conditions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.conditions-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+
+  & .conditions-card-label {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  & .conditions-card-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+
+    & .conditions-card-unit {
+      font-size: 0.9rem;
+      font-weight: 400;
+    }
+  }
+
+  & .conditions-card-sub {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+  }
+
+  & .conditions-card-sub + .conditions-card-sub {
+    margin-top: 0;
+  }
+
+  & .wind-type {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+}

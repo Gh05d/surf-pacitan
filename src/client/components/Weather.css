@@ -1,0 +1,38 @@
+.weather {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+}
+
+.weather-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  text-align: center;
+
+  & .weather-card-label {
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.4rem;
+  }
+
+  & .weather-card-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+
+    & .weather-card-unit {
+      font-size: 0.75rem;
+      font-weight: 400;
+    }
+  }
+
+  & .weather-card-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}

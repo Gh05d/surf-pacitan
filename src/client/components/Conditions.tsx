@@ -1,4 +1,5 @@
 import type { SwellData, WindData } from "../../../shared/types";
+import "./Conditions.css";
 
 interface ConditionsProps {
   swell: SwellData;
@@ -29,58 +30,23 @@ export function Conditions({ swell, wind }: ConditionsProps) {
   const wt = windType(wind.direction);
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "0.75rem",
-        padding: "0.75rem 1rem",
-      }}
-    >
+    <div className="conditions">
       {/* Swell */}
-      <div
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-          borderRadius: "10px",
-          padding: "0.75rem",
-        }}
-      >
-        <div style={{ color: "var(--text-dim)", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
-          Swell
-        </div>
-        <div style={{ fontSize: "1.5rem", fontWeight: 700, lineHeight: 1 }}>
-          {swell.height.toFixed(1)}m
-        </div>
-        <div style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-          @{swell.period}s
-        </div>
-        <div style={{ color: "var(--text-dim)", fontSize: "0.85rem" }}>
-          {swellDir} {swell.direction}°
-        </div>
+      <div className="conditions-card">
+        <div className="conditions-card-label">Swell</div>
+        <div className="conditions-card-value">{swell.height.toFixed(1)}m</div>
+        <div className="conditions-card-sub">@{swell.period}s</div>
+        <div className="conditions-card-sub">{swellDir} {swell.direction}°</div>
       </div>
 
       {/* Wind */}
-      <div
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-          borderRadius: "10px",
-          padding: "0.75rem",
-        }}
-      >
-        <div style={{ color: "var(--text-dim)", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
-          Wind
+      <div className="conditions-card">
+        <div className="conditions-card-label">Wind</div>
+        <div className="conditions-card-value">
+          {wind.speed} <span className="conditions-card-unit">km/h</span>
         </div>
-        <div style={{ fontSize: "1.5rem", fontWeight: 700, lineHeight: 1 }}>
-          {wind.speed} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>km/h</span>
-        </div>
-        <div style={{ color: wt.color, fontSize: "0.85rem", fontWeight: 600, marginTop: "0.25rem" }}>
-          {wt.label}
-        </div>
-        <div style={{ color: "var(--text-dim)", fontSize: "0.85rem" }}>
-          {windDir} · Gusts {Math.round(wind.gusts)} km/h
-        </div>
+        <div className="wind-type" style={{ color: wt.color }}>{wt.label}</div>
+        <div className="conditions-card-sub">{windDir} · Gusts {Math.round(wind.gusts)} km/h</div>
       </div>
     </div>
   );

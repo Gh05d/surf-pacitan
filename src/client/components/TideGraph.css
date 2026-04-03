@@ -1,0 +1,19 @@
+.tide-graph {
+  padding: 0.5rem 0.5rem 0.25rem;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 0.5rem 0;
+
+  & .tide-graph-label {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 0.5rem 0.25rem;
+  }
+
+  & .tide-graph-container {
+    width: 100%;
+  }
+}

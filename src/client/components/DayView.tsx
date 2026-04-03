@@ -2,6 +2,7 @@ import type { ForecastDay, HourlyData, SurfableRating } from "../../../shared/ty
 import { TideGraph } from "./TideGraph";
 import { Conditions } from "./Conditions";
 import { Weather } from "./Weather";
+import "./DayView.css";
 
 interface DayViewProps {
   day: ForecastDay;
@@ -95,53 +96,30 @@ export function DayView({ day, isToday }: DayViewProps) {
   const daylightWidth = sunsetPercent - sunrisePercent;
 
   return (
-    <div style={{ paddingBottom: "1.5rem" }}>
+    <div className="day-view">
       {/* Astronomy bar */}
-      <div style={{ padding: "0.75rem 1rem 0.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-dim)", fontSize: "0.75rem", marginBottom: "0.25rem" }}>
+      <div className="astronomy-bar">
+        <div className="astronomy-times">
           <span>Sunrise {day.astronomy.sunrise}</span>
           <span>{Math.floor(totalDaylight / 60)}h {totalDaylight % 60}m daylight</span>
           <span>Sunset {day.astronomy.sunset}</span>
         </div>
-        {/* Visual daylight bar */}
-        <div
-          style={{
-            position: "relative",
-            height: "6px",
-            background: "#0f2035",
-            borderRadius: "3px",
-            overflow: "hidden",
-          }}
-        >
+        <div className="daylight-track">
           <div
-            style={{
-              position: "absolute",
-              left: `${sunrisePercent}%`,
-              width: `${daylightWidth}%`,
-              height: "100%",
-              background: "linear-gradient(90deg, #d9534f, #f59e42, #f0a830)",
-              borderRadius: "3px",
-            }}
+            className="daylight-fill"
+            style={{ left: `${sunrisePercent}%`, width: `${daylightWidth}%` }}
           />
         </div>
       </div>
 
       {/* Best window recommendation */}
-      <div style={{
-        margin: "0 1rem 0.25rem",
-        padding: "0.65rem 0.75rem",
-        background: windows.length > 0 ? "var(--green-bg)" : "var(--red-bg)",
-        border: "none",
-        borderRadius: "8px",
-        fontSize: "0.85rem",
-        lineHeight: 1.5,
-      }}>
+      <div className={`surf-window ${windows.length > 0 ? "go" : "nogo"}`}>
         {windows.length > 0 ? (
           <>
-            <div style={{ fontWeight: 700, color: "var(--green)", marginBottom: "0.15rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+            <div className="surf-window-title">
               {windows.some((w) => w.rating === "green") ? "Best window" : "Possible window"}
             </div>
-            <div style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+            <div className="surf-window-times">
               {windows.map((w, i) => (
                 <span key={i}>
                   {i > 0 && ", "}
@@ -149,19 +127,15 @@ export function DayView({ day, isToday }: DayViewProps) {
                 </span>
               ))}
             </div>
-            <div style={{ color: "#fff", fontSize: "0.78rem", marginTop: "0.2rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+            <div className="surf-window-note">
               Rising tide with enough water over the sandbar.{" "}
               {windows.some((w) => w.rating === "green") ? "Good swell and light wind." : "Marginal conditions."}
             </div>
           </>
         ) : (
           <>
-            <div style={{ fontWeight: 700, color: "var(--red)", marginBottom: "0.15rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-              No surf window
-            </div>
-            <div style={{ color: "#fff", fontSize: "0.78rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-              {reason}
-            </div>
+            <div className="surf-window-title">No surf window</div>
+            <div className="surf-window-note">{reason}</div>
           </>
         )}
       </div>
@@ -181,9 +155,7 @@ export function DayView({ day, isToday }: DayViewProps) {
           <Weather weather={activeHourly.weather} />
         </>
       ) : (
-        <div style={{ color: "var(--text-dim)", textAlign: "center", padding: "1rem" }}>
-          No hourly data available
-        </div>
+        <div className="no-hourly">No hourly data available</div>
       )}
     </div>
   );

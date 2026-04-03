@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import "./TideGraph.css";
 import type { HourlyData, TideExtreme, AstronomyData, SurfableRating } from "../../../shared/types";
 
 interface TideGraphProps {
@@ -210,27 +211,9 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
   }, [hourly, tideExtremes, astronomy, isToday]);
 
   return (
-    <div
-      style={{
-        padding: "0.5rem 0.5rem 0.25rem",
-        background: "var(--bg-card)",
-        borderTop: "1px solid var(--border)",
-        borderBottom: "1px solid var(--border)",
-        margin: "0.5rem 0",
-      }}
-    >
-      <div
-        style={{
-          color: "var(--text-dim)",
-          fontSize: "0.7rem",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          padding: "0 0.5rem 0.25rem",
-        }}
-      >
-        Tide
-      </div>
-      <div ref={containerRef} style={{ width: "100%" }} />
+    <div className="tide-graph">
+      <div className="tide-graph-label">Tide</div>
+      <div ref={containerRef} className="tide-graph-container" />
     </div>
   );
 }

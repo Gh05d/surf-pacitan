@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { useForecast } from "./hooks/useForecast";
 import { Header } from "./components/Header";
 import { DayView } from "./components/DayView";
+import "./App.css";
 
 function formatDayLabel(dateStr: string, index: number): string {
   if (index === 0) return "Today";
@@ -42,29 +43,18 @@ export function App() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
-        <div style={{ color: "var(--text-dim)", fontSize: "1.1rem" }}>Loading forecast…</div>
+      <div className="app-loading">
+        <div className="app-loading-text">Loading forecast…</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: "1rem", padding: "1.5rem" }}>
-        <div style={{ color: "var(--red)", fontSize: "1.1rem" }}>Failed to load forecast</div>
-        <div style={{ color: "var(--text-dim)", fontSize: "0.875rem" }}>{error}</div>
-        <button
-          onClick={refresh}
-          style={{
-            background: "var(--accent)",
-            color: "var(--text)",
-            border: "none",
-            borderRadius: "8px",
-            padding: "0.5rem 1.5rem",
-            fontSize: "1rem",
-            cursor: "pointer",
-          }}
-        >
+      <div className="app-error">
+        <div className="app-error-title">Failed to load forecast</div>
+        <div className="app-error-detail">{error}</div>
+        <button onClick={refresh} className="app-retry-btn">
           Retry
         </button>
       </div>
@@ -73,8 +63,8 @@ export function App() {
 
   if (days.length === 0) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
-        <div style={{ color: "var(--text-dim)" }}>No forecast data available</div>
+      <div className="app-empty">
+        <div className="app-empty-text">No forecast data available</div>
       </div>
     );
   }
@@ -84,53 +74,32 @@ export function App() {
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", minHeight: "100dvh" }}
+      className="app-root"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       <Header lastFetch={lastFetch} onRefresh={refresh} />
 
       {/* Day label + navigation */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0.75rem 1rem 0.25rem",
-        }}
-      >
+      <div className="day-nav">
         <button
           onClick={() => navigateTo(dayIndex - 1)}
           disabled={dayIndex === 0 || animating}
-          style={{
-            background: "none",
-            border: "none",
-            color: dayIndex === 0 ? "var(--border)" : "var(--text)",
-            fontSize: "1.25rem",
-            cursor: dayIndex === 0 ? "default" : "pointer",
-            padding: "0.25rem 0.5rem",
-          }}
+          className="day-nav-btn"
           aria-label="Previous day"
         >
           ◀
         </button>
 
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: 600, fontSize: "1.1rem" }}>{dayLabel}</div>
-          <div style={{ color: "var(--text-dim)", fontSize: "0.8rem" }}>{currentDay.date}</div>
+        <div className="day-nav-label">
+          <div className="day-nav-name">{dayLabel}</div>
+          <div className="day-nav-date">{currentDay.date}</div>
         </div>
 
         <button
           onClick={() => navigateTo(dayIndex + 1)}
           disabled={dayIndex === days.length - 1 || animating}
-          style={{
-            background: "none",
-            border: "none",
-            color: dayIndex === days.length - 1 ? "var(--border)" : "var(--text)",
-            fontSize: "1.25rem",
-            cursor: dayIndex === days.length - 1 ? "default" : "pointer",
-            padding: "0.25rem 0.5rem",
-          }}
+          className="day-nav-btn"
           aria-label="Next day"
         >
           ▶
@@ -138,30 +107,19 @@ export function App() {
       </div>
 
       {/* Dot indicators */}
-      <div style={{ display: "flex", justifyContent: "center", gap: "6px", padding: "0.5rem 0 0.25rem" }}>
+      <div className="day-dots">
         {days.map((_, i) => (
           <button
             key={i}
             onClick={() => navigateTo(i)}
-            style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              border: "none",
-              background: i === dayIndex ? "var(--text)" : "var(--border)",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className={`day-dot${i === dayIndex ? " active" : ""}`}
             aria-label={`Day ${i + 1}`}
           />
         ))}
       </div>
 
       {/* Main content */}
-      <div style={{
-        flex: 1,
-        overflow: "hidden",
-      }}>
+      <div className="day-content-outer">
         <div style={{
           transition: animating ? "transform 0.2s ease-out, opacity 0.2s ease-out" : "none",
           transform: slideDir === "left" ? "translateX(-30%)" : slideDir === "right" ? "translateX(30%)" : "translateX(0)",
