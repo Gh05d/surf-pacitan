@@ -37,6 +37,8 @@ export function App() {
 
   function handleTouchEnd(e: React.TouchEvent) {
     const delta = swipeStartX.current - e.changedTouches[0].clientX;
+    // Reset to prevent stale values from triggering phantom swipes
+    swipeStartX.current = e.changedTouches[0].clientX;
     if (Math.abs(delta) < 50) return;
     if (delta > 0) navigateTo(dayIndex + 1);
     else navigateTo(dayIndex - 1);
