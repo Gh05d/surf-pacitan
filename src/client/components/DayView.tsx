@@ -131,7 +131,7 @@ export function DayView({ day, isToday }: DayViewProps) {
         margin: "0 1rem 0.25rem",
         padding: "0.65rem 0.75rem",
         background: windows.length > 0 ? "var(--green-bg)" : "var(--red-bg)",
-        border: `1px solid ${windows.length > 0 ? "var(--green)" : "var(--red)"}`,
+        border: "none",
         borderRadius: "8px",
         fontSize: "0.85rem",
         lineHeight: 1.5,
