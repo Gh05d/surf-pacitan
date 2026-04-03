@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { useForecast } from "./hooks/useForecast";
 import { Header } from "./components/Header";
 import { DayView } from "./components/DayView";
+import { SpotMap } from "./components/SpotMap";
 import "./App.css";
 
 function formatDayLabel(dateStr: string, index: number): string {
@@ -128,6 +129,7 @@ export function App() {
           <DayView key={currentDay.date} day={currentDay} isToday={dayIndex === 0} />
         </div>
       </div>
+      <SpotMap />
     </div>
   );
 }

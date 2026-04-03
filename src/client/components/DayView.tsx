@@ -2,7 +2,6 @@ import type { ForecastDay, HourlyData, SurfableRating } from "../../../shared/ty
 import { TideGraph } from "./TideGraph";
 import { Conditions } from "./Conditions";
 import { Weather } from "./Weather";
-import { SpotMap } from "./SpotMap";
 import "./DayView.css";
 
 interface DayViewProps {
@@ -158,7 +157,6 @@ export function DayView({ day, isToday }: DayViewProps) {
       ) : (
         <div className="no-hourly">No hourly data available</div>
       )}
-      <SpotMap />
     </div>
   );
 }
