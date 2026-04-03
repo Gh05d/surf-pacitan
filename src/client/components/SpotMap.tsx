@@ -6,9 +6,10 @@ import "./SpotMap.css";
 function createSpotIcon() {
   return L.divIcon({
     className: "spot-marker",
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    popupAnchor: [0, -10],
+    html: "🏄",
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16],
   });
 }
 
