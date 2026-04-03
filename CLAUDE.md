@@ -14,6 +14,7 @@ bun run start                    # production server
 ```
 
 After `bun run build`, restart the service: `systemctl restart surf-pacitan.service`
+Frontend-only changes (CSS, components) don't need a service restart — nginx serves static files directly from `/var/www/surf-pacitan/`.
 
 ## Architecture
 
@@ -22,6 +23,8 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 **Data flow:** StormGlass API → parsers (`stormglass.ts`) → surfable rating computed (`surfable.ts`) → cached as `ForecastDay` JSON in Redis (`cache.ts`) → served via Hono endpoints (`routes.ts`) → React frontend renders tide graph + conditions.
 
 **Cron schedule (`cron.ts`):** Tides fetched once daily (astronomical, don't change). Weather/swell fetched every 3h. On startup, tides run first, then weather merges into cached tide data. StormGlass free tier = 10 requests/day — when exhausted, falls back to Open-Meteo (no swell data).
+
+**StormGlass quota gotcha:** When quota is exceeded, the API may return HTTP 200 with `hours: []` (empty data) instead of 402. The code detects both cases and falls back to Open-Meteo.
 
 **Surfable logic (`surfable.ts`):** Rates each hour green/yellow/red based on tide position (% of daily range), swell height, wind speed, and daylight. Thresholds in `config.ts`. Pancer Door is a south-facing sandbar break — low tide = too shallow, rising to high tide = ideal.
 
@@ -36,6 +39,8 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 ## Key Conventions
 
+- No inline styles in React components — use co-located `.css` files with CSS nesting.
+- TideGraph canvas drawing code (`hooks.draw`) uses Canvas API, not React styles — don't try to extract those to CSS.
 - Use relative imports (`../shared/types`, `./config`), not `@shared/*` path aliases — `bun test` doesn't resolve tsconfig paths.
 - StormGlass wind is **m/s**, app uses **km/h** — conversion in `stormglass.ts`. Open-Meteo wind is already km/h.
 - All StormGlass timestamps are UTC. Parsers convert to UTC+7 (Asia/Jakarta) for local time.
@@ -46,3 +51,4 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - systemd: `surf-pacitan.service` (safe to restart, no persistent state)
 - nginx: `surf-pacitan.conf` → `surf-pacitan.yolo-goldgrube.pp.ua`
 - Static build: `/var/www/surf-pacitan/`
+- Git remote uses SSH alias `github-surf-pacitan` (configured in `~/.ssh/config`) for deploy key.
