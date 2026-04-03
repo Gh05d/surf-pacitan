@@ -23,19 +23,23 @@
     & .daylight-fill {
       position: absolute;
       height: 100%;
-      background: linear-gradient(90deg, #d9534f, #f59e42, #f0a830);
-      border-radius: 3px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        #d9534f 8%,
+        #f59e42 30%,
+        #f0a830 70%,
+        #d9534f 92%,
+        transparent 100%
+      );
     }
 
     & .daylight-now {
       position: absolute;
-      top: -3px;
-      width: 4px;
-      height: 12px;
-      background: #fff;
-      border-radius: 2px;
-      transform: translateX(-2px);
-      box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+      top: -8px;
+      font-size: 14px;
+      line-height: 1;
+      transform: translateX(-7px);
+      filter: drop-shadow(0 0 4px rgba(255, 200, 50, 0.8));
     }
   }
 }
