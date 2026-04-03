@@ -22,7 +22,7 @@ const SPOTS = [
 
 const DEFAULT_CENTER: L.LatLngExpression = [-8.227, 111.088];
 const DEFAULT_ZOOM = 14;
-const FLY_TO_ZOOM = 17;
+const FLY_TO_ZOOM = 15;
 
 export function SpotMap() {
   const containerRef = useRef<HTMLDivElement>(null);

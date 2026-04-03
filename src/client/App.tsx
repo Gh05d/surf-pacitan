@@ -32,13 +32,16 @@ export function App() {
   }
 
   function handleTouchStart(e: React.TouchEvent) {
+    // Ignore touches inside the map
+    if ((e.target as HTMLElement).closest(".spot-map")) return;
     swipeStartX.current = e.touches[0].clientX;
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
+    // Ignore touches inside the map
+    if ((e.target as HTMLElement).closest(".spot-map")) return;
     const delta = swipeStartX.current - e.changedTouches[0].clientX;
-    // Reset to prevent stale values from triggering phantom swipes
-    swipeStartX.current = e.changedTouches[0].clientX;
+    swipeStartX.current = 0;
     if (Math.abs(delta) < 50) return;
     if (delta > 0) navigateTo(dayIndex + 1);
     else navigateTo(dayIndex - 1);
