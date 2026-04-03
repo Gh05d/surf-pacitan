@@ -15,12 +15,12 @@ L.Icon.Default.mergeOptions({
 });
 
 const SPOTS = [
-  { name: "Pancer Door", lat: -8.2315, lng: 111.1035, desc: "River mouth sandbar, left" },
-  { name: "Pancer", lat: -8.2310, lng: 111.0955, desc: "Beachbreak, lefts & rights" },
-  { name: "Teleng Ria", lat: -8.2295, lng: 111.0870, desc: "Mellow beachbreak, beginner friendly" },
+  { name: "Pancer Door", lat: -8.2310, lng: 111.0960, desc: "River mouth sandbar, left" },
+  { name: "Pancer", lat: -8.2290, lng: 111.0880, desc: "Beachbreak, lefts & rights" },
+  { name: "Teleng Ria", lat: -8.2240, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly" },
 ];
 
-const DEFAULT_CENTER: L.LatLngExpression = [-8.228, 111.095];
+const DEFAULT_CENTER: L.LatLngExpression = [-8.227, 111.088];
 const DEFAULT_ZOOM = 14;
 const FLY_TO_ZOOM = 17;
 
