@@ -201,7 +201,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
             // --- Per-spot surfable bands below chart ---
             const bandHeight = 14;
             const bandGap = 2;
-            const bandStartY = u.bbox.top + u.bbox.height + 4;
+            const bandStartY = u.bbox.top + u.bbox.height + 30;
 
             for (let si = 0; si < SPOT_LABELS.length; si++) {
               const spotKey = SPOT_LABELS[si].key;
