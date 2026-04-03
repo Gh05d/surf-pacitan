@@ -5,17 +5,25 @@
 }
 
 /* Loading / error / empty states */
-.app-loading,
-.app-empty {
+.app-loading {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
 
   & .app-loading-text {
     color: var(--text-dim);
-    font-size: 1.1rem;
+    font-family: var(--font-display);
+    font-size: 1rem;
   }
+}
+
+.app-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
 
   & .app-empty-text {
     color: var(--text-dim);
@@ -130,4 +138,19 @@
 .day-content-outer {
   flex: 1;
   overflow: hidden;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

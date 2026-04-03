@@ -50,6 +50,7 @@ export function App() {
   if (loading) {
     return (
       <div className="app-loading">
+        <div className="loading-spinner" />
         <div className="app-loading-text">Loading forecast…</div>
       </div>
     );
