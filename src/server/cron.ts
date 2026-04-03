@@ -158,6 +158,12 @@ export async function fetchAndCacheWeather(): Promise<void> {
       );
     }
 
+    // Check if StormGlass returned empty data (quota exceeded returns 200 with 0 hours)
+    const totalEntries = Array.from(weatherEntries.values()).reduce((sum, arr) => sum + arr.length, 0);
+    if (totalEntries === 0) {
+      throw new Error("StormGlass returned 0 weather hours (likely quota exceeded)");
+    }
+
     console.log("[cron] fetchAndCacheWeather: StormGlass weather OK");
   } catch (err) {
     console.warn("[cron] fetchAndCacheWeather: StormGlass failed, trying Open-Meteo fallback:", err);
@@ -275,9 +281,10 @@ export async function fetchAndCacheWeather(): Promise<void> {
 export function startScheduler(): void {
   console.log("[cron] startScheduler: initializing");
 
-  // Initial fetch on startup
-  fetchAndCacheTides().catch((err) => console.error("[cron] initial tide fetch error:", err));
-  fetchAndCacheWeather().catch((err) => console.error("[cron] initial weather fetch error:", err));
+  // Initial fetch on startup — tides first, then weather (weather merges into tide cache)
+  fetchAndCacheTides()
+    .then(() => fetchAndCacheWeather())
+    .catch((err) => console.error("[cron] initial fetch error:", err));
 
   // Weather every 3 hours
   setInterval(() => {
