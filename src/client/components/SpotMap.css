@@ -1,0 +1,61 @@
+.spot-map {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-top: 1.5rem;
+
+  .spot-map-buttons {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .spot-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.4rem 0.9rem;
+    color: var(--text);
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+    &.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0a1628;
+    }
+  }
+
+  .spot-map-container {
+    height: 250px;
+    width: 100%;
+
+    /* Override Leaflet popup styles for dark theme */
+    .leaflet-popup-content-wrapper {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .leaflet-popup-tip {
+      background: var(--bg-card);
+    }
+
+    .leaflet-popup-close-button {
+      color: var(--text-muted);
+
+      &:hover {
+        color: var(--text);
+      }
+    }
+  }
+}
