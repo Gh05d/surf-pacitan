@@ -42,3 +42,15 @@ html, body {
   margin: 0 auto;
   min-height: 100dvh;
 }
+
+@media (min-width: 768px) {
+  #root {
+    max-width: 720px;
+  }
+}
+
+@media (min-width: 1024px) {
+  #root {
+    max-width: 960px;
+  }
+}

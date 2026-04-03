@@ -57,3 +57,41 @@
     margin-top: 0.25rem;
   }
 }
+
+@media (min-width: 768px) {
+  .conditions {
+    padding: 0.75rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .conditions-card {
+    padding: 1rem;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    & .conditions-card-value {
+      font-size: 1.75rem;
+    }
+
+    & .conditions-card-sub {
+      font-size: 0.9rem;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .conditions {
+    padding: 1rem 2rem;
+  }
+
+  .conditions-card {
+    padding: 1.25rem;
+
+    & .conditions-card-value {
+      font-size: 2rem;
+    }
+  }
+}

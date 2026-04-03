@@ -150,10 +150,10 @@ export function DayView({ day, isToday }: DayViewProps) {
 
       {/* Conditions and weather */}
       {activeHourly ? (
-        <>
+        <div className="conditions-weather-row">
           <Conditions swell={activeHourly.swell} wind={activeHourly.wind} />
           <Weather weather={activeHourly.weather} />
-        </>
+        </div>
       ) : (
         <div className="no-hourly">No hourly data available</div>
       )}

@@ -37,7 +37,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
 
     const container = containerRef.current;
     const width = container.clientWidth || 340;
-    const height = 200;
+    const height = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
 
     // Build data arrays — x in seconds (hour * 3600), y = tide height
     const times = new Float64Array(hourly.map((h) => h.hour * 3600));
@@ -196,7 +196,8 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
     // Resize handler
     const ro = new ResizeObserver(() => {
       if (plotRef.current && container) {
-        plotRef.current.setSize({ width: container.clientWidth, height });
+        const newHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+        plotRef.current.setSize({ width: container.clientWidth, height: newHeight });
       }
     });
     ro.observe(container);

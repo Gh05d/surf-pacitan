@@ -154,3 +154,54 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+@media (min-width: 768px) {
+  .day-nav {
+    padding: 1rem 1.5rem 0.5rem;
+  }
+
+  .day-nav-btn {
+    font-size: 1.5rem;
+    padding: 0.5rem 0.75rem;
+
+    &:hover:not(:disabled) {
+      color: var(--accent);
+    }
+  }
+
+  .day-nav-label {
+    & .day-nav-name {
+      font-size: 1.3rem;
+    }
+
+    & .day-nav-date {
+      font-size: 0.85rem;
+    }
+  }
+
+  .day-dots {
+    gap: 8px;
+    padding: 0.75rem 0 0.5rem;
+  }
+
+  .day-dot {
+    width: 10px;
+    height: 10px;
+
+    &:hover {
+      background: var(--text-dim);
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .day-nav {
+    padding: 1.25rem 2rem 0.5rem;
+  }
+
+  .day-nav-label {
+    & .day-nav-name {
+      font-size: 1.4rem;
+    }
+  }
+}
