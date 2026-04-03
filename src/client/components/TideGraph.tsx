@@ -43,7 +43,9 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
 
     const container = containerRef.current;
     const width = container.clientWidth || 340;
-    const height = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+    const bandSpace = 60; // space for 3 spot bands below X-axis
+    const chartHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+    const height = chartHeight + bandSpace;
 
     // Build data arrays — x in seconds (hour * 3600), y = tide height
     const times = new Float64Array(hourly.map((h) => h.hour * 3600));
@@ -58,6 +60,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
     const opts: uPlot.Options = {
       width,
       height,
+      padding: [16, 8, bandSpace, 8],
       scales: {
         x: {
           time: false,
@@ -190,6 +193,40 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
               ctx.restore();
             }
 
+            // --- Per-spot surfable bands (in padding area below X-axis) ---
+            const bh = 14;
+            const bg = 3;
+            // Reset clipping so we can draw in the padding area
+            ctx.restore();
+            ctx.save();
+            for (let si = 0; si < SPOT_LABELS.length; si++) {
+              const spotKey = SPOT_LABELS[si].key;
+              const bandY = (height - bandSpace + 8 + si * (bh + bg));
+
+              // Label
+              ctx.fillStyle = "#8b9bb4";
+              ctx.font = `10px 'Outfit', system-ui, sans-serif`;
+              ctx.textAlign = "right";
+              ctx.fillText(SPOT_LABELS[si].label, u.bbox.left - 4, bandY + bh - 3);
+
+              // Segments
+              for (let hour = 0; hour < 24; hour++) {
+                const entry = hourly.find((h) => h.hour === hour);
+                if (!entry) continue;
+
+                const rating = entry.surfable[spotKey];
+                if (rating === "red") continue;
+
+                const xStart = u.valToPos(hour * 3600, "x", true);
+                const xEnd = u.valToPos((hour + 1) * 3600, "x", true);
+
+                ctx.fillStyle = rating === "green" ? "rgba(45, 212, 168, 0.5)" : "rgba(240, 168, 48, 0.35)";
+                ctx.beginPath();
+                ctx.roundRect(xStart, bandY, xEnd - xStart, bh, 2);
+                ctx.fill();
+              }
+            }
+
             ctx.restore();
           },
         ],
@@ -202,8 +239,8 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
     // Resize handler
     const ro = new ResizeObserver(() => {
       if (plotRef.current && container) {
-        const newHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
-        plotRef.current.setSize({ width: container.clientWidth, height: newHeight });
+        const newChartHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 260 : 200;
+        plotRef.current.setSize({ width: container.clientWidth, height: newChartHeight + bandSpace });
       }
     });
     ro.observe(container);
@@ -221,21 +258,6 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
     <div className="tide-graph">
       <div className="tide-graph-label">Tide</div>
       <div ref={containerRef} className="tide-graph-container" />
-      <div className="spot-bands">
-        {SPOT_LABELS.map(({ key, label }) => (
-          <div key={key} className="spot-band-row">
-            <span className="spot-band-label">{label}</span>
-            <div className="spot-band-bar">
-              {hourly.map((h) => (
-                <div
-                  key={h.hour}
-                  className={`spot-band-seg ${h.surfable[key] !== "red" ? h.surfable[key] : ""}`}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
