@@ -60,7 +60,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
     const opts: uPlot.Options = {
       width,
       height,
-      padding: [16, 8, bandSpace, 8],
+      padding: [16, 8, bandSpace, 72],
       scales: {
         x: {
           time: false,
