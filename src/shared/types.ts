@@ -34,13 +34,17 @@ export interface AstronomyData {
 
 export type SurfableRating = "green" | "yellow" | "red";
 
+export type SpotName = "telengRia" | "pancer" | "pancerDoor";
+
+export type SpotRatings = Record<SpotName, SurfableRating>;
+
 export interface HourlyData {
   hour: number; // 0-23
   tide: TideData;
   swell: SwellData;
   wind: WindData;
   weather: WeatherData;
-  surfable: SurfableRating;
+  surfable: SpotRatings;
 }
 
 export interface ForecastDay {

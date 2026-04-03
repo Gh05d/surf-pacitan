@@ -33,7 +33,37 @@ export const OPEN_METEO_HOURLY_PARAMS = [
 ].join(",");
 
 // Surfable thresholds
-export const SURFABLE = {
+export interface SpotThresholds {
+  TIDE_GREEN_MIN: number;
+  TIDE_GREEN_FALLING_MIN: number;
+  TIDE_YELLOW_MIN: number;
+  SWELL_GREEN_MIN: number;
+  SWELL_YELLOW_MIN: number;
+  WIND_GREEN_MAX: number;
+  WIND_YELLOW_MAX: number;
+}
+
+export const SURFABLE_TELENG_RIA: SpotThresholds = {
+  TIDE_GREEN_MIN: 25,
+  TIDE_GREEN_FALLING_MIN: 60,
+  TIDE_YELLOW_MIN: 15,
+  SWELL_GREEN_MIN: 0.4,
+  SWELL_YELLOW_MIN: 0.2,
+  WIND_GREEN_MAX: 25,
+  WIND_YELLOW_MAX: 35,
+};
+
+export const SURFABLE_PANCER: SpotThresholds = {
+  TIDE_GREEN_MIN: 40,
+  TIDE_GREEN_FALLING_MIN: 75,
+  TIDE_YELLOW_MIN: 25,
+  SWELL_GREEN_MIN: 0.5,
+  SWELL_YELLOW_MIN: 0.3,
+  WIND_GREEN_MAX: 20,
+  WIND_YELLOW_MAX: 30,
+};
+
+export const SURFABLE_PANCER_DOOR: SpotThresholds = {
   TIDE_GREEN_MIN: 50,
   TIDE_GREEN_FALLING_MIN: 80,
   TIDE_YELLOW_MIN: 30,
@@ -41,6 +71,14 @@ export const SURFABLE = {
   SWELL_YELLOW_MIN: 0.3,
   WIND_GREEN_MAX: 20,
   WIND_YELLOW_MAX: 30,
+};
+
+export const SURFABLE = SURFABLE_PANCER_DOOR;
+
+export const SPOT_THRESHOLDS = {
+  telengRia: SURFABLE_TELENG_RIA,
+  pancer: SURFABLE_PANCER,
+  pancerDoor: SURFABLE_PANCER_DOOR,
 } as const;
 
 // Cron intervals
