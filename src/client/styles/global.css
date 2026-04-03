@@ -18,7 +18,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  background: linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 15%, #5c2d5e 30%, #c75c3a 50%, #e8943a 65%, #1a3050 80%, #0a1628 100%);
+  background: linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 8%, #5c2d5e 16%, #c75c3a 24%, #e8943a 32%, #c7873a 40%, #3d6a7a 52%, #1a5060 64%, #163d50 76%, #0f2a3d 88%, #0a1628 100%);
   background-attachment: fixed;
   min-height: 100vh;
   color: var(--text);
