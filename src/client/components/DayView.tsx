@@ -138,10 +138,10 @@ export function DayView({ day, isToday }: DayViewProps) {
       }}>
         {windows.length > 0 ? (
           <>
-            <div style={{ fontWeight: 700, color: "var(--green)", marginBottom: "0.15rem" }}>
+            <div style={{ fontWeight: 700, color: "var(--green)", marginBottom: "0.15rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {windows.some((w) => w.rating === "green") ? "Best window" : "Possible window"}
             </div>
-            <div>
+            <div style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {windows.map((w, i) => (
                 <span key={i}>
                   {i > 0 && ", "}
@@ -149,17 +149,17 @@ export function DayView({ day, isToday }: DayViewProps) {
                 </span>
               ))}
             </div>
-            <div style={{ color: "var(--text-dim)", fontSize: "0.78rem", marginTop: "0.2rem" }}>
+            <div style={{ color: "#fff", fontSize: "0.78rem", marginTop: "0.2rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               Rising tide with enough water over the sandbar.{" "}
               {windows.some((w) => w.rating === "green") ? "Good swell and light wind." : "Marginal conditions."}
             </div>
           </>
         ) : (
           <>
-            <div style={{ fontWeight: 700, color: "var(--red)", marginBottom: "0.15rem" }}>
+            <div style={{ fontWeight: 700, color: "var(--red)", marginBottom: "0.15rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               No surf window
             </div>
-            <div style={{ color: "var(--text-dim)", fontSize: "0.78rem" }}>
+            <div style={{ color: "#fff", fontSize: "0.78rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
               {reason}
             </div>
           </>
