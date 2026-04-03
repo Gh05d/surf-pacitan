@@ -1,4 +1,4 @@
-import type { ForecastDay, HourlyData, SurfableRating } from "../../../shared/types";
+import type { ForecastDay, HourlyData, SurfableRating, SpotName } from "../../../shared/types";
 import { TideGraph } from "./TideGraph";
 import { Conditions } from "./Conditions";
 import { Weather } from "./Weather";
@@ -14,51 +14,58 @@ function parseHHmm(hhmm: string): number {
   return h * 60 + m;
 }
 
-interface SurfWindow {
+interface SpotWindow {
+  spot: string;
+  spotKey: SpotName;
   start: number;
   end: number;
   rating: "green" | "yellow";
 }
 
-function findBestWindow(hourly: HourlyData[]): { windows: SurfWindow[]; reason: string } {
-  // Group consecutive green/yellow hours into windows
-  const windows: SurfWindow[] = [];
-  let current: SurfWindow | null = null;
+const SPOT_INFO: { key: SpotName; label: string }[] = [
+  { key: "telengRia", label: "Teleng Ria" },
+  { key: "pancer", label: "Pancer" },
+  { key: "pancerDoor", label: "Pancer Door" },
+];
 
-  for (const h of hourly) {
-    if (h.surfable === "green" || h.surfable === "yellow") {
-      const rating = h.surfable;
-      if (current && (current.rating === rating || rating === "yellow" || current.rating === "yellow")) {
-        // Extend window, upgrade rating if any hour is green
-        current.end = h.hour + 1;
-        if (rating === "green") current.rating = "green";
+function findSpotWindows(hourly: HourlyData[]): { windows: SpotWindow[]; reason: string } {
+  const allWindows: SpotWindow[] = [];
+
+  for (const { key, label } of SPOT_INFO) {
+    let current: SpotWindow | null = null;
+
+    for (const h of hourly) {
+      const rating = h.surfable[key];
+      if (rating === "green" || rating === "yellow") {
+        if (current) {
+          current.end = h.hour + 1;
+          if (rating === "green") current.rating = "green";
+        } else {
+          current = { spot: label, spotKey: key, start: h.hour, end: h.hour + 1, rating };
+        }
       } else {
-        if (current) windows.push(current);
-        current = { start: h.hour, end: h.hour + 1, rating };
-      }
-    } else {
-      if (current) {
-        windows.push(current);
-        current = null;
+        if (current) {
+          allWindows.push(current);
+          current = null;
+        }
       }
     }
+    if (current) allWindows.push(current);
   }
-  if (current) windows.push(current);
 
-  if (windows.length === 0) {
-    // Figure out why
-    const hasSwell = hourly.some((h) => h.swell.height >= 0.3);
-    const hasLightWind = hourly.some((h) => h.wind.speed < 30);
+  if (allWindows.length === 0) {
+    const hasSwell = hourly.some((h) => h.swell.height >= 0.2);
+    const hasLightWind = hourly.some((h) => h.wind.speed < 35);
     if (!hasSwell) return { windows: [], reason: "No swell — flat conditions all day." };
     if (!hasLightWind) return { windows: [], reason: "Too much wind — blown out all day." };
     return { windows: [], reason: "Low tide during daylight hours — sandbar too shallow." };
   }
 
-  return { windows, reason: "" };
+  return { windows: allWindows, reason: "" };
 }
 
-function formatWindow(w: SurfWindow): string {
-  return `${String(w.start).padStart(2, "0")}:00–${String(w.end).padStart(2, "0")}:00`;
+function formatWindow(start: number, end: number): string {
+  return `${String(start).padStart(2, "0")}:00–${String(end).padStart(2, "0")}:00`;
 }
 
 function getActiveHourly(day: ForecastDay, isToday: boolean): HourlyData | null {
@@ -84,7 +91,7 @@ function getActiveHourly(day: ForecastDay, isToday: boolean): HourlyData | null 
 
 export function DayView({ day, isToday }: DayViewProps) {
   const activeHourly = getActiveHourly(day, isToday);
-  const { windows, reason } = findBestWindow(day.hourly);
+  const { windows, reason } = findSpotWindows(day.hourly);
 
   const sunriseMin = parseHHmm(day.astronomy.sunrise);
   const sunsetMin = parseHHmm(day.astronomy.sunset);
@@ -117,19 +124,26 @@ export function DayView({ day, isToday }: DayViewProps) {
         {windows.length > 0 ? (
           <>
             <div className="surf-window-title">
-              {windows.some((w) => w.rating === "green") ? "Best window" : "Possible window"}
+              {windows.some((w) => w.rating === "green") ? "Best windows" : "Possible windows"}
             </div>
-            <div className="surf-window-times">
-              {windows.map((w, i) => (
-                <span key={i}>
-                  {i > 0 && ", "}
-                  <strong>{formatWindow(w)}</strong>
-                </span>
-              ))}
+            <div className="surf-window-spots">
+              {SPOT_INFO.map(({ key, label }) => {
+                const spotWindows = windows.filter((w) => w.spotKey === key);
+                if (spotWindows.length === 0) return null;
+                return (
+                  <div key={key} className="surf-window-spot-row">
+                    <span className="surf-window-spot-name">🏄 {label}</span>
+                    <span className="surf-window-spot-times">
+                      {spotWindows.map((w, i) => (
+                        <span key={i}>{i > 0 && ", "}{formatWindow(w.start, w.end)}</span>
+                      ))}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
             <div className="surf-window-note">
-              Rising tide with enough water over the sandbar.{" "}
-              {windows.some((w) => w.rating === "green") ? "Good swell and light wind." : "Marginal conditions."}
+              Rising tide with enough water over the sandbar.
             </div>
           </>
         ) : (
