@@ -11,9 +11,22 @@ function degToCompass(deg: number): string {
   return dirs[index];
 }
 
+// Pacitan beaches face south (~180°). Wind "direction" = where it comes FROM.
+// Offshore = from land (N) = good. Onshore = from sea (S) = bad.
+function windType(deg: number): { label: string; color: string } {
+  const d = ((deg % 360) + 360) % 360;
+  // Offshore: 315-45 (from N)
+  if (d >= 315 || d <= 45) return { label: "Offshore", color: "var(--green)" };
+  // Onshore: 135-225 (from S)
+  if (d >= 135 && d <= 225) return { label: "Onshore", color: "var(--red)" };
+  // Cross-shore: everything else
+  return { label: "Cross-shore", color: "var(--yellow)" };
+}
+
 export function Conditions({ swell, wind }: ConditionsProps) {
   const swellDir = degToCompass(swell.direction);
   const windDir = degToCompass(wind.direction);
+  const wt = windType(wind.direction);
 
   return (
     <div
@@ -62,11 +75,11 @@ export function Conditions({ swell, wind }: ConditionsProps) {
         <div style={{ fontSize: "1.5rem", fontWeight: 700, lineHeight: 1 }}>
           {wind.speed} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>km/h</span>
         </div>
-        <div style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-          {windDir} direction
+        <div style={{ color: wt.color, fontSize: "0.85rem", fontWeight: 600, marginTop: "0.25rem" }}>
+          {wt.label}
         </div>
         <div style={{ color: "var(--text-dim)", fontSize: "0.85rem" }}>
-          Gusts {wind.gusts} km/h
+          {windDir} · Gusts {Math.round(wind.gusts)} km/h
         </div>
       </div>
     </div>
