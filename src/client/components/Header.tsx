@@ -21,7 +21,7 @@ export function Header({ lastFetch, onRefresh }: HeaderProps) {
       }}
     >
       <h1 style={{ fontSize: "1.25rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
-        Surf Pacitan
+        🏄 Surf Pacitan
       </h1>
 
       <button

@@ -18,7 +18,9 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  background: var(--bg);
+  background: linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 15%, #5c2d5e 30%, #c75c3a 50%, #e8943a 65%, #1a3050 80%, #0a1628 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 16px;
