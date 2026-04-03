@@ -16,7 +16,7 @@ function createSpotIcon() {
 const SPOTS = [
   { name: "Teleng Ria", lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly" },
   { name: "Pancer", lat: -8.2215, lng: 111.0880, desc: "Beachbreak, lefts & rights" },
-  { name: "Pancer Door", lat: -8.2378, lng: 111.1076, desc: "River mouth sandbar, left" },
+  { name: "Pancer Door", lat: -8.2298, lng: 111.1026, desc: "River mouth sandbar, left" },
 ];
 
 const DEFAULT_CENTER: L.LatLngExpression = [-8.227, 111.088];
