@@ -169,17 +169,17 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
               const isHigh = extreme.type === "high";
               ctx.save();
               ctx.fillStyle = isHigh ? "#2dd4a8" : "#e06050";
-              ctx.font = "bold 11px system-ui, sans-serif";
+              ctx.font = "bold 14px system-ui, sans-serif";
               ctx.textAlign = "center";
 
-              const label = isHigh ? "H" : "L";
-              const heightLabel = `${extreme.height.toFixed(1)}m`;
-              const offsetY = isHigh ? -18 : 22;
+              const label = isHigh ? "High" : "Low";
+              const timeLabel = extreme.time;
+              const offsetY = isHigh ? -14 : 18;
 
               ctx.fillText(label, ex, ey + offsetY);
-              ctx.font = "10px system-ui, sans-serif";
-              ctx.fillStyle = isHigh ? "rgba(45, 212, 168, 0.8)" : "rgba(224, 96, 80, 0.8)";
-              ctx.fillText(heightLabel, ex, ey + offsetY + (isHigh ? -12 : 13));
+              ctx.font = "12px system-ui, sans-serif";
+              ctx.fillStyle = isHigh ? "rgba(45, 212, 168, 0.85)" : "rgba(224, 96, 80, 0.85)";
+              ctx.fillText(timeLabel, ex, ey + offsetY + (isHigh ? -16 : 16));
               ctx.restore();
             }
 
