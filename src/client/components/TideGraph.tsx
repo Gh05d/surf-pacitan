@@ -69,7 +69,7 @@ export function TideGraph({ hourly, tideExtremes, astronomy, isToday }: TideGrap
           stroke: "#5a7a9a",
           grid: { stroke: "#132840", width: 1 },
           ticks: { stroke: "#1a3050" },
-          incrs: [3 * 3600],
+          splits: () => [0, 3, 6, 9, 12, 15, 18, 21].map((h) => h * 3600),
           values: (_u, splits) =>
             splits.map((s) => {
               const h = Math.round(s / 3600);
