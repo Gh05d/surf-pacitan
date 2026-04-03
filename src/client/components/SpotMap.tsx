@@ -27,7 +27,10 @@ export function SpotMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const locationMarkerRef = useRef<L.Marker | null>(null);
   const [activeSpot, setActiveSpot] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationDenied, setLocationDenied] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -75,6 +78,36 @@ export function SpotMap() {
     }
   }
 
+  function handleLocateClick() {
+    if (!mapRef.current || !navigator.geolocation || locationDenied) return;
+    setLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const map = mapRef.current!;
+
+        if (locationMarkerRef.current) {
+          locationMarkerRef.current.setLatLng([latitude, longitude]);
+        } else {
+          locationMarkerRef.current = L.marker([latitude, longitude], {
+            icon: L.divIcon({
+              className: "location-marker",
+              iconSize: [16, 16],
+              iconAnchor: [8, 8],
+            }),
+          }).addTo(map);
+        }
+        setLocating(false);
+      },
+      () => {
+        setLocationDenied(true);
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
   return (
     <div className="spot-map">
       <div className="spot-map-buttons">
@@ -87,6 +120,13 @@ export function SpotMap() {
             {spot.name}
           </button>
         ))}
+        <button
+          className={`spot-btn locate-btn${locationDenied ? " denied" : ""}`}
+          onClick={handleLocateClick}
+          disabled={locationDenied || locating}
+        >
+          {locating ? "…" : "📍"}
+        </button>
       </div>
       <div className="spot-map-container" ref={containerRef} />
     </div>

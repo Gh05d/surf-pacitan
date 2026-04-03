@@ -41,6 +41,17 @@
     &:active {
       transform: scale(0.95);
     }
+
+    &.locate-btn {
+      padding: 0.4rem 0.6rem;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    &.denied {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
   }
 
   .spot-map-container {
@@ -54,6 +65,21 @@
       font-size: 24px;
       line-height: 1;
       filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+    }
+
+    /* User location marker */
+    .location-marker {
+      background: var(--accent);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4);
+      animation: location-pulse 2s ease-out infinite;
+    }
+
+    @keyframes location-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+      70% { box-shadow: 0 0 0 12px rgba(56, 189, 248, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
     }
 
     /* Override Leaflet popup styles for dark theme */
