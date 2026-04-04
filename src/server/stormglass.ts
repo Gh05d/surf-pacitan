@@ -1,6 +1,7 @@
 import type { TideExtreme, AstronomyData } from "../shared/types";
 import {
   LOCATION,
+  LOCATION_OFFSHORE,
   STORMGLASS_BASE_URL,
   STORMGLASS_WEATHER_PARAMS,
 } from "../server/config";
@@ -195,11 +196,11 @@ export async function fetchSeaLevels(start: string, end: string): Promise<any> {
 }
 
 export async function fetchWeather(start: string, end: string): Promise<any> {
+  // Use offshore coordinates — StormGlass weather returns 0 hours for coastal points
   const url = buildUrl("/weather/point", {
-    lat: String(LOCATION.lat),
-    lng: String(LOCATION.lng),
+    lat: String(LOCATION_OFFSHORE.lat),
+    lng: String(LOCATION_OFFSHORE.lng),
     params: STORMGLASS_WEATHER_PARAMS,
-    source: "sg",
     start,
     end,
   });

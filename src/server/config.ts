@@ -4,6 +4,13 @@ export const LOCATION = {
   lng: 111.13,
 } as const;
 
+// Offshore point for swell/weather data — StormGlass weather endpoint
+// returns 0 hours for coastal coordinates, needs an ocean point
+export const LOCATION_OFFSHORE = {
+  lat: -8.5,
+  lng: 111.1,
+} as const;
+
 export const TIMEZONE = "Asia/Jakarta";
 
 // StormGlass API
