@@ -1,9 +1,7 @@
 import type { TideExtreme, AstronomyData } from "../shared/types";
 import {
   LOCATION,
-  LOCATION_OFFSHORE,
   STORMGLASS_BASE_URL,
-  STORMGLASS_WEATHER_PARAMS,
 } from "../server/config";
 
 const UTC_OFFSET_HOURS = 7; // UTC+7 (WIB)
@@ -74,49 +72,6 @@ export function parseSeaLevels(
     });
 }
 
-export function parseWeather(
-  raw: any,
-  targetDate: string
-): {
-  hour: number;
-  swell: { height: number; period: number; direction: number };
-  wind: { speed: number; direction: number; gusts: number };
-  weather: { temp: number; condition: string; precipitation: number };
-}[] {
-  return (raw.hours as any[])
-    .map((item) => {
-      const local = utcToLocal(item.time);
-      if (localDateStr(local) !== targetDate) return null;
-
-      const windSpeedMs: number = item.windSpeed?.sg ?? 0;
-      const gustMs: number = item.gust?.sg ?? 0;
-      const cloudCover: number = item.cloudCover?.sg ?? 0;
-      const precipitation: number = item.precipitation?.sg ?? 0;
-
-      const condition = deriveCondition(cloudCover, precipitation);
-
-      return {
-        hour: local.getUTCHours(),
-        swell: {
-          height: item.swellHeight?.sg ?? 0,
-          period: item.swellPeriod?.sg ?? 0,
-          direction: item.swellDirection?.sg ?? 0,
-        },
-        wind: {
-          speed: windSpeedMs * 3.6,
-          direction: item.windDirection?.sg ?? 0,
-          gusts: gustMs * 3.6,
-        },
-        weather: {
-          temp: item.airTemperature?.sg ?? 0,
-          condition,
-          precipitation,
-        },
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
-}
-
 export function parseAstronomy(raw: any): AstronomyData {
   const first = (raw.data as any[])[0];
   return {
@@ -136,15 +91,6 @@ export function extractQuota(meta: any): number | null {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function deriveCondition(cloudCover: number, precipitation: number): string {
-  if (precipitation > 5) return "rain";
-  if (precipitation > 0) return "light_rain";
-  if (cloudCover >= 80) return "overcast";
-  if (cloudCover >= 50) return "cloudy";
-  if (cloudCover >= 20) return "partly_cloudy";
-  return "clear";
-}
 
 function sgApiKey(): string {
   const key = process.env.STORMGLASS_API_KEY;
@@ -189,18 +135,6 @@ export async function fetchSeaLevels(start: string, end: string): Promise<any> {
   const url = buildUrl("/tide/sea-level/point", {
     lat: String(LOCATION.lat),
     lng: String(LOCATION.lng),
-    start,
-    end,
-  });
-  return sgFetch(url);
-}
-
-export async function fetchWeather(start: string, end: string): Promise<any> {
-  // Use offshore coordinates — StormGlass weather returns 0 hours for coastal points
-  const url = buildUrl("/weather/point", {
-    lat: String(LOCATION_OFFSHORE.lat),
-    lng: String(LOCATION_OFFSHORE.lng),
-    params: STORMGLASS_WEATHER_PARAMS,
     start,
     end,
   });

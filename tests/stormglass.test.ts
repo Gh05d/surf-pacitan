@@ -2,7 +2,6 @@ import { describe, test, expect } from "bun:test";
 import {
   parseTideExtremes,
   parseSeaLevels,
-  parseWeather,
   parseAstronomy,
 } from "../src/server/stormglass";
 
@@ -50,36 +49,6 @@ describe("parseSeaLevels", () => {
     expect(result[0].rising).toBe(true);
     expect(result[1].rising).toBe(true);
     expect(result[2].rising).toBe(false);
-  });
-});
-
-describe("parseWeather", () => {
-  test("parses hourly weather from sg source", () => {
-    const raw = {
-      hours: [
-        {
-          time: "2026-04-03T00:00:00+00:00",
-          swellHeight: { sg: 1.2 },
-          swellPeriod: { sg: 12 },
-          swellDirection: { sg: 210 },
-          windSpeed: { sg: 2.5 },
-          windDirection: { sg: 135 },
-          gust: { sg: 4.1 },
-          airTemperature: { sg: 28 },
-          precipitation: { sg: 0 },
-          cloudCover: { sg: 45 },
-        },
-      ],
-    };
-    const result = parseWeather(raw, "2026-04-03");
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0].swell.height).toBe(1.2);
-    expect(result[0].swell.period).toBe(12);
-    expect(result[0].swell.direction).toBe(210);
-    expect(result[0].wind.speed).toBeCloseTo(9, 0);
-    expect(result[0].wind.gusts).toBeCloseTo(14.76, 0);
-    expect(result[0].weather.temp).toBe(28);
-    expect(result[0].weather.precipitation).toBe(0);
   });
 });
 
