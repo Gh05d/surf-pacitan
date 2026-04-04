@@ -28,29 +28,40 @@ const SPOT_INFO: { key: SpotName; label: string }[] = [
   { key: "pancerDoor", label: "Pancer Door" },
 ];
 
-function findSpotWindows(hourly: HourlyData[]): { windows: SpotWindow[]; reason: string } {
-  const allWindows: SpotWindow[] = [];
+function findWindowsForRating(hourly: HourlyData[], spotKey: SpotName, label: string, targetRating: "green" | "yellow"): SpotWindow[] {
+  const windows: SpotWindow[] = [];
+  let current: SpotWindow | null = null;
 
-  for (const { key, label } of SPOT_INFO) {
-    let current: SpotWindow | null = null;
-
-    for (const h of hourly) {
-      const rating = h.surfable[key];
-      if (rating === "green" || rating === "yellow") {
-        if (current) {
-          current.end = h.hour + 1;
-          if (rating === "green") current.rating = "green";
-        } else {
-          current = { spot: label, spotKey: key, start: h.hour, end: h.hour + 1, rating };
-        }
+  for (const h of hourly) {
+    if (h.surfable[spotKey] === targetRating) {
+      if (current) {
+        current.end = h.hour + 1;
       } else {
-        if (current) {
-          allWindows.push(current);
-          current = null;
-        }
+        current = { spot: label, spotKey, start: h.hour, end: h.hour + 1, rating: targetRating };
+      }
+    } else {
+      if (current) {
+        windows.push(current);
+        current = null;
       }
     }
-    if (current) allWindows.push(current);
+  }
+  if (current) windows.push(current);
+  return windows;
+}
+
+function findSpotWindows(hourly: HourlyData[]): { windows: SpotWindow[]; reason: string } {
+  // Try green windows first
+  let allWindows: SpotWindow[] = [];
+  for (const { key, label } of SPOT_INFO) {
+    allWindows.push(...findWindowsForRating(hourly, key, label, "green"));
+  }
+
+  // If no green, fall back to yellow
+  if (allWindows.length === 0) {
+    for (const { key, label } of SPOT_INFO) {
+      allWindows.push(...findWindowsForRating(hourly, key, label, "yellow"));
+    }
   }
 
   if (allWindows.length === 0) {
