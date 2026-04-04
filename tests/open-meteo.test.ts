@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { parseOpenMeteoWeather } from "../src/server/open-meteo";
+import { parseOpenMeteoWeather, parseOpenMeteoMarine } from "../src/server/open-meteo";
 
 describe("parseOpenMeteoWeather", () => {
   test("parses hourly weather for a target date", () => {
@@ -42,5 +42,38 @@ describe("parseOpenMeteoWeather", () => {
     expect(result[1].weather.condition).toBe("partly_cloudy");
     expect(result[2].weather.condition).toBe("overcast");
     expect(result[3].weather.condition).toBe("thunderstorm");
+  });
+});
+
+describe("parseOpenMeteoMarine", () => {
+  test("parses hourly swell data for a target date", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-04-04T00:00", "2026-04-04T01:00", "2026-04-04T02:00"],
+        swell_wave_height: [1.08, 1.1, 1.15],
+        swell_wave_period: [7.85, 8.2, 8.5],
+        swell_wave_direction: [198, 200, 201],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-04-04");
+    expect(result).toHaveLength(3);
+    expect(result[0].height).toBe(1.08);
+    expect(result[0].period).toBe(7.85);
+    expect(result[0].direction).toBe(198);
+    expect(result[1].height).toBe(1.1);
+  });
+
+  test("filters by target date", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-04-04T12:00", "2026-04-05T00:00"],
+        swell_wave_height: [1.0, 0.8],
+        swell_wave_period: [10, 9],
+        swell_wave_direction: [200, 190],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-04-04");
+    expect(result).toHaveLength(1);
+    expect(result[0].hour).toBe(12);
   });
 });

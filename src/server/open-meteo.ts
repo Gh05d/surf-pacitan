@@ -1,7 +1,9 @@
-import type { WindData, WeatherData } from "../shared/types";
+import type { SwellData, WindData, WeatherData } from "../shared/types";
 import {
   OPEN_METEO_BASE_URL,
   OPEN_METEO_HOURLY_PARAMS,
+  OPEN_METEO_MARINE_URL,
+  OPEN_METEO_MARINE_PARAMS,
   LOCATION,
   FORECAST_DAYS,
   TIMEZONE,
@@ -75,6 +77,53 @@ export async function fetchOpenMeteoWeather(): Promise<any> {
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
     throw new Error(`Open-Meteo ${resp.status}: ${text}`);
+  }
+  return resp.json();
+}
+
+// ---------------------------------------------------------------------------
+// Marine Parser (swell data)
+// ---------------------------------------------------------------------------
+
+export function parseOpenMeteoMarine(
+  raw: any,
+  targetDate: string
+): { hour: number; height: number; period: number; direction: number }[] {
+  const h = raw.hourly;
+  const times: string[] = h.time;
+  const results: { hour: number; height: number; period: number; direction: number }[] = [];
+
+  for (let i = 0; i < times.length; i++) {
+    if (!times[i].startsWith(targetDate)) continue;
+
+    const hour = parseInt(times[i].slice(11, 13), 10);
+    results.push({
+      hour,
+      height: h.swell_wave_height[i] ?? 0,
+      period: h.swell_wave_period[i] ?? 0,
+      direction: Math.round(h.swell_wave_direction[i] ?? 0),
+    });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Marine Fetcher
+// ---------------------------------------------------------------------------
+
+export async function fetchOpenMeteoMarine(): Promise<any> {
+  const url = new URL(OPEN_METEO_MARINE_URL);
+  url.searchParams.set("latitude", String(LOCATION.lat));
+  url.searchParams.set("longitude", String(LOCATION.lng));
+  url.searchParams.set("hourly", OPEN_METEO_MARINE_PARAMS);
+  url.searchParams.set("timezone", TIMEZONE);
+  url.searchParams.set("forecast_days", String(FORECAST_DAYS));
+
+  const resp = await fetch(url.toString());
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`Open-Meteo Marine ${resp.status}: ${text}`);
   }
   return resp.json();
 }
