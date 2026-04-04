@@ -4,28 +4,10 @@ export const LOCATION = {
   lng: 111.13,
 } as const;
 
-// Offshore point for swell/weather data — StormGlass weather endpoint
-// returns 0 hours for coastal coordinates, needs an ocean point
-export const LOCATION_OFFSHORE = {
-  lat: -8.5,
-  lng: 111.1,
-} as const;
-
 export const TIMEZONE = "Asia/Jakarta";
 
 // StormGlass API
 export const STORMGLASS_BASE_URL = "https://api.stormglass.io/v2";
-export const STORMGLASS_WEATHER_PARAMS = [
-  "swellHeight",
-  "swellPeriod",
-  "swellDirection",
-  "windSpeed",
-  "windDirection",
-  "gust",
-  "airTemperature",
-  "precipitation",
-  "cloudCover",
-].join(",");
 
 // Open-Meteo API
 export const OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/forecast";
@@ -37,6 +19,14 @@ export const OPEN_METEO_HOURLY_PARAMS = [
   "wind_gusts_10m",
   "weather_code",
   "cloud_cover",
+].join(",");
+
+// Open-Meteo Marine API
+export const OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine";
+export const OPEN_METEO_MARINE_PARAMS = [
+  "swell_wave_height",
+  "swell_wave_period",
+  "swell_wave_direction",
 ].join(",");
 
 // Surfable thresholds
