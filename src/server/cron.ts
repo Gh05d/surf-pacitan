@@ -1,15 +1,13 @@
 import {
   fetchTideExtremes,
   fetchSeaLevels,
-  fetchWeather,
   fetchAstronomy,
   parseTideExtremes,
   parseSeaLevels,
-  parseWeather,
   parseAstronomy,
   extractQuota,
 } from "./stormglass";
-import { fetchOpenMeteoWeather, parseOpenMeteoWeather } from "./open-meteo";
+import { fetchOpenMeteoWeather, parseOpenMeteoWeather, fetchOpenMeteoMarine, parseOpenMeteoMarine } from "./open-meteo";
 import { setCachedDay, setLastFetch, setQuotaRemaining, getCachedDay } from "./cache";
 import { computeAllSpotRatings, computeTidePercent } from "./surfable";
 import { LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS } from "./config";
@@ -121,100 +119,46 @@ export async function fetchAndCacheTides(): Promise<void> {
 
 export async function fetchAndCacheWeather(): Promise<void> {
   console.log("[cron] fetchAndCacheWeather: starting");
-  const { start, end, dates } = getDateRange();
+  const { dates } = getDateRange();
 
-  let weatherEntries: Map<
-    string,
-    {
-      hour: number;
-      swell: SwellData;
-      wind: WindData;
-      weather: WeatherData;
-    }[]
-  > = new Map();
+  let weatherRaw: any;
+  let marineRaw: any;
 
-  let usedFallback = false;
-
-  // Try StormGlass first
   try {
-    const raw = await fetchWeather(start, end);
-
-    // Track quota from meta
-    const quota = extractQuota(raw.meta);
-    if (quota != null) {
-      await setQuotaRemaining(quota);
-    }
-
-    for (const date of dates) {
-      const parsed = parseWeather(raw, date);
-      weatherEntries.set(
-        date,
-        parsed.map((p) => ({
-          hour: p.hour,
-          swell: p.swell,
-          wind: p.wind,
-          weather: p.weather,
-        }))
-      );
-    }
-
-    // Check if StormGlass returned empty data (quota exceeded returns 200 with 0 hours)
-    const totalEntries = Array.from(weatherEntries.values()).reduce((sum, arr) => sum + arr.length, 0);
-    if (totalEntries === 0) {
-      throw new Error("StormGlass returned 0 weather hours (likely quota exceeded)");
-    }
-
-    console.log("[cron] fetchAndCacheWeather: StormGlass weather OK");
+    [weatherRaw, marineRaw] = await Promise.all([
+      fetchOpenMeteoWeather(),
+      fetchOpenMeteoMarine(),
+    ]);
   } catch (err) {
-    console.warn("[cron] fetchAndCacheWeather: StormGlass failed, trying Open-Meteo fallback:", err);
-    usedFallback = true;
-
-    try {
-      const raw = await fetchOpenMeteoWeather();
-
-      for (const date of dates) {
-        const parsed = parseOpenMeteoWeather(raw, date);
-        weatherEntries.set(
-          date,
-          parsed.map((p) => ({
-            hour: p.hour,
-            swell: { height: 0, period: 0, direction: 0 }, // no swell from Open-Meteo
-            wind: p.wind,
-            weather: p.weather,
-          }))
-        );
-      }
-
-      console.log("[cron] fetchAndCacheWeather: Open-Meteo fallback OK");
-    } catch (fallbackErr) {
-      console.error("[cron] fetchAndCacheWeather: Open-Meteo fallback also failed:", fallbackErr);
-      return;
-    }
+    console.error("[cron] fetchAndCacheWeather: Open-Meteo fetch failed:", err);
+    return;
   }
 
-  // Merge weather data into cached days
   for (const date of dates) {
-    const entries = weatherEntries.get(date);
-    if (!entries || entries.length === 0) continue;
+    const weatherHours = parseOpenMeteoWeather(weatherRaw, date);
+    const marineHours = parseOpenMeteoMarine(marineRaw, date);
+
+    const weatherByHour = new Map(weatherHours.map((w) => [w.hour, w]));
+    const marineByHour = new Map(marineHours.map((m) => [m.hour, m]));
 
     const cachedDay = await getCachedDay(date);
-
-    // Build hourly map from entries
-    const entryByHour = new Map(entries.map((e) => [e.hour, e]));
 
     let hourly: HourlyData[];
 
     if (cachedDay) {
-      // Merge weather into existing tide-based hourly
       const heights = cachedDay.hourly.map((h) => h.tide.height);
       const dailyMin = heights.length ? Math.min(...heights) : 0;
       const dailyMax = heights.length ? Math.max(...heights) : 1;
 
       hourly = cachedDay.hourly.map((h) => {
-        const wx = entryByHour.get(h.hour);
-        const swell = wx ? wx.swell : h.swell;
-        const wind = wx ? wx.wind : h.wind;
-        const weather = wx ? wx.weather : h.weather;
+        const wx = weatherByHour.get(h.hour);
+        const marine = marineByHour.get(h.hour);
+
+        const swell: SwellData = marine
+          ? { height: marine.height, period: marine.period, direction: marine.direction }
+          : h.swell;
+        const wind: WindData = wx ? wx.wind : h.wind;
+        const weather: WeatherData = wx ? wx.weather : h.weather;
 
         const tidePercent = computeTidePercent(h.tide.height, dailyMin, dailyMax);
         const surfable = computeAllSpotRatings({
@@ -232,42 +176,44 @@ export async function fetchAndCacheWeather(): Promise<void> {
 
       await setCachedDay({ ...cachedDay, hourly });
     } else {
-      // No tide data cached yet; build from weather entries alone
-      hourly = entries.map((e) => {
+      const allHours = new Set([
+        ...weatherHours.map((w) => w.hour),
+        ...marineHours.map((m) => m.hour),
+      ]);
+
+      hourly = [...allHours].sort((a, b) => a - b).map((hour) => {
+        const wx = weatherByHour.get(hour);
+        const marine = marineByHour.get(hour);
+
+        const swell: SwellData = marine
+          ? { height: marine.height, period: marine.period, direction: marine.direction }
+          : { height: 0, period: 0, direction: 0 };
+        const wind: WindData = wx ? wx.wind : { speed: 0, direction: 0, gusts: 0 };
+        const weather: WeatherData = wx ? wx.weather : { temp: 0, condition: "clear", precipitation: 0 };
+
         const surfable = computeAllSpotRatings({
-          hour: e.hour,
-          tidePercent: 50, // unknown
+          hour,
+          tidePercent: 50,
           tideRising: false,
-          swellHeight: e.swell.height,
-          windSpeed: e.wind.speed,
+          swellHeight: swell.height,
+          windSpeed: wind.speed,
           sunrise: "06:00",
           sunset: "18:00",
         });
 
-        return {
-          hour: e.hour,
-          tide: { height: 0, rising: false },
-          swell: e.swell,
-          wind: e.wind,
-          weather: e.weather,
-          surfable,
-        };
+        return { hour, tide: { height: 0, rising: false }, swell, wind, weather, surfable };
       });
 
-      const day: ForecastDay = {
+      await setCachedDay({
         date,
         location: { name: LOCATION.name, lat: LOCATION.lat, lng: LOCATION.lng },
         astronomy: { sunrise: "06:00", sunset: "18:00" },
         tideExtremes: [],
         hourly,
-      };
-
-      await setCachedDay(day);
+      });
     }
 
-    console.log(
-      `[cron] fetchAndCacheWeather: updated ${date}${usedFallback ? " (fallback, no swell)" : ""}`
-    );
+    console.log(`[cron] fetchAndCacheWeather: updated ${date}`);
   }
 
   await setLastFetch(new Date().toISOString());
