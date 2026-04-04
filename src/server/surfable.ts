@@ -26,10 +26,10 @@ export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds
   if (windSpeed > thresholds.WIND_YELLOW_MAX) return "red";
   if (tidePercent < thresholds.TIDE_YELLOW_MIN) return "red";
 
-  const tideGreen =
-    (tideRising && tidePercent >= thresholds.TIDE_GREEN_MIN) ||
-    (!tideRising && tidePercent >= thresholds.TIDE_GREEN_FALLING_MIN);
+  // Falling tide is never green — sandbar beachbreaks need rising water
+  if (!tideRising) return "yellow";
 
+  const tideGreen = tidePercent >= thresholds.TIDE_GREEN_MIN;
   const swellGreen = swellHeight >= thresholds.SWELL_GREEN_MIN;
   const windGreen = windSpeed < thresholds.WIND_GREEN_MAX;
 

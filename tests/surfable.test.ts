@@ -9,8 +9,8 @@ describe("computeSurfable", () => {
     expect(computeSurfable({ hour: 9, tidePercent: 70, tideRising: true, swellHeight: 1.2, windSpeed: 10, sunrise, sunset })).toBe("green");
   });
 
-  test("green: falling tide > 80%, good swell, light wind", () => {
-    expect(computeSurfable({ hour: 11, tidePercent: 85, tideRising: false, swellHeight: 0.8, windSpeed: 15, sunrise, sunset })).toBe("green");
+  test("yellow: falling tide > 80% — falling is never green", () => {
+    expect(computeSurfable({ hour: 11, tidePercent: 85, tideRising: false, swellHeight: 0.8, windSpeed: 15, sunrise, sunset })).toBe("yellow");
   });
 
   test("yellow: mid tide 30-50% rising", () => {
