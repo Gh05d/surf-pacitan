@@ -99,7 +99,8 @@ function getDefaultBlockIndex(
   if (isToday) {
     const currentHour = new Date().getHours();
     const idx = blocks.findIndex((b) => currentHour >= b.start && currentHour < b.end);
-    return idx >= 0 ? idx : 0;
+    // Past last block → show most recent; before first → show first
+    return idx >= 0 ? idx : currentHour >= blocks[blocks.length - 1].end ? blocks.length - 1 : 0;
   }
 
   if (bestWindowStart !== null) {
