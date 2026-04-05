@@ -30,14 +30,23 @@ export const OPEN_METEO_MARINE_PARAMS = [
 ].join(",");
 
 // Surfable thresholds
+export interface WindDirectionThresholds {
+  greenMax: number;  // km/h
+  yellowMax: number; // km/h
+}
+
 export interface SpotThresholds {
   TIDE_GREEN_MIN: number;
   TIDE_GREEN_FALLING_MIN: number;
   TIDE_YELLOW_MIN: number;
   SWELL_GREEN_MIN: number;
   SWELL_YELLOW_MIN: number;
-  WIND_GREEN_MAX: number;
-  WIND_YELLOW_MAX: number;
+  facingDirection: number;
+  wind: {
+    offshore: WindDirectionThresholds;
+    crossShore: WindDirectionThresholds;
+    onshore: WindDirectionThresholds;
+  };
 }
 
 export const SURFABLE_TELENG_RIA: SpotThresholds = {
@@ -46,8 +55,12 @@ export const SURFABLE_TELENG_RIA: SpotThresholds = {
   TIDE_YELLOW_MIN: 15,
   SWELL_GREEN_MIN: 0.4,
   SWELL_YELLOW_MIN: 0.2,
-  WIND_GREEN_MAX: 25,
-  WIND_YELLOW_MAX: 35,
+  facingDirection: 180,
+  wind: {
+    offshore:   { greenMax: 35, yellowMax: 50 },
+    crossShore: { greenMax: 25, yellowMax: 35 },
+    onshore:    { greenMax: 15, yellowMax: 25 },
+  },
 };
 
 export const SURFABLE_PANCER: SpotThresholds = {
@@ -56,8 +69,12 @@ export const SURFABLE_PANCER: SpotThresholds = {
   TIDE_YELLOW_MIN: 25,
   SWELL_GREEN_MIN: 0.5,
   SWELL_YELLOW_MIN: 0.3,
-  WIND_GREEN_MAX: 20,
-  WIND_YELLOW_MAX: 30,
+  facingDirection: 200,
+  wind: {
+    offshore:   { greenMax: 30, yellowMax: 45 },
+    crossShore: { greenMax: 20, yellowMax: 30 },
+    onshore:    { greenMax: 10, yellowMax: 20 },
+  },
 };
 
 export const SURFABLE_PANCER_DOOR: SpotThresholds = {
@@ -66,8 +83,12 @@ export const SURFABLE_PANCER_DOOR: SpotThresholds = {
   TIDE_YELLOW_MIN: 30,
   SWELL_GREEN_MIN: 0.5,
   SWELL_YELLOW_MIN: 0.3,
-  WIND_GREEN_MAX: 20,
-  WIND_YELLOW_MAX: 30,
+  facingDirection: 180,
+  wind: {
+    offshore:   { greenMax: 30, yellowMax: 45 },
+    crossShore: { greenMax: 20, yellowMax: 30 },
+    onshore:    { greenMax: 10, yellowMax: 20 },
+  },
 };
 
 export const SURFABLE = SURFABLE_PANCER_DOOR;
