@@ -26,9 +26,9 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 **StormGlass quota gotcha:** When quota is exceeded, the API may return HTTP 200 with `hours: []` (empty data) instead of 402. The code detects both cases and falls back to Open-Meteo.
 
-**Surfable logic (`surfable.ts`):** Rates each hour green/yellow/red based on tide position (% of daily range), swell height, wind speed, and daylight. Thresholds in `config.ts`. Pancer Door is a south-facing sandbar break — low tide = too shallow, rising to high tide = ideal. Falling tide is never green (sandbar beachbreaks need rising water).
+**Surfable logic (`surfable.ts`):** Rates each hour green/yellow/red based on tide position (% of daily range), swell height, wind speed+direction, and daylight. Each spot has a `facingDirection` in `config.ts`; `getWindCategory()` classifies wind as onshore/cross-shore/offshore and applies direction-dependent thresholds (onshore is strictest, offshore most tolerant). Pancer Door is a south-facing sandbar break — low tide = too shallow, rising to high tide = ideal. Falling tide is never green (sandbar beachbreaks need rising water).
 
-**Frontend:** Swipeable day views with uPlot tide chart. Canvas overlays for surfable zone bands, now marker, and H/L labels are in `TideGraph.tsx` draw hooks (Canvas API, not React styles). Each component has a co-located `.css` file using CSS nesting.
+**Frontend:** Swipeable day views with uPlot tide chart. Canvas overlays for surfable zone bands, now marker, and H/L labels are in `TideGraph.tsx` draw hooks (Canvas API, not React styles). `ConditionsPanel.tsx` groups Swell/Wind/Weather cards into a single panel with 3h time block navigation (◀ ▶ arrows, daylight blocks only). Each component has a co-located `.css` file using CSS nesting.
 
 ## Environment Variables
 
@@ -53,4 +53,4 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - systemd: `surf-pacitan.service` (safe to restart, no persistent state)
 - nginx: `surf-pacitan.conf` → `surf-pacitan.yolo-goldgrube.pp.ua`
 - Static build: `/var/www/surf-pacitan/`
-- Git remote uses SSH alias `github-surf-pacitan` (configured in `~/.ssh/config`) for deploy key.
+- Git remote: `origin` (SSH alias `github-surf-pacitan` in `~/.ssh/config` for deploy key). Push with `git push origin main`.
