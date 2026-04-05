@@ -91,6 +91,7 @@ export async function fetchAndCacheTides(): Promise<void> {
           tideRising: sl.rising,
           swellHeight: 0,
           windSpeed: 0,
+          windDirection: 0,
           sunrise: astronomy.sunrise,
           sunset: astronomy.sunset,
         }),
@@ -167,6 +168,7 @@ export async function fetchAndCacheWeather(): Promise<void> {
           tideRising: h.tide.rising,
           swellHeight: swell.height,
           windSpeed: wind.speed,
+          windDirection: wind.direction,
           sunrise: cachedDay.astronomy.sunrise,
           sunset: cachedDay.astronomy.sunset,
         });
@@ -197,6 +199,7 @@ export async function fetchAndCacheWeather(): Promise<void> {
           tideRising: false,
           swellHeight: swell.height,
           windSpeed: wind.speed,
+          windDirection: wind.direction,
           sunrise: "06:00",
           sunset: "18:00",
         });
