@@ -135,3 +135,44 @@ describe("computeAllSpotRatings", () => {
     expect(result.pancerDoor).toBe("yellow");
   });
 });
+
+describe("wind direction affects rating", () => {
+  const sunrise = "05:42";
+  const sunset = "17:31";
+  // Base conditions: good tide, good swell, rising — only wind varies
+  const base = { hour: 10, tidePercent: 70, tideRising: true, swellHeight: 1.0, sunrise, sunset };
+
+  test("15 km/h onshore (180°) is yellow, same speed offshore (0°) is green", () => {
+    // Pancer Door: onshore greenMax=10, offshore greenMax=30
+    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 180 })).toBe("yellow");
+    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 0 })).toBe("green");
+  });
+
+  test("25 km/h onshore (180°) is red, same speed offshore (0°) is green", () => {
+    // Pancer Door: onshore yellowMax=20 → red; offshore greenMax=30 → green
+    expect(computeSurfable({ ...base, windSpeed: 25, windDirection: 180 })).toBe("red");
+    expect(computeSurfable({ ...base, windSpeed: 25, windDirection: 0 })).toBe("green");
+  });
+
+  test("25 km/h cross-shore (90°) is yellow", () => {
+    // Pancer Door: crossShore greenMax=20, yellowMax=30 → yellow
+    expect(computeSurfable({ ...base, windSpeed: 25, windDirection: 90 })).toBe("yellow");
+  });
+
+  test("40 km/h offshore (0°) is yellow, not red", () => {
+    // Pancer Door: offshore greenMax=30, yellowMax=45 → yellow
+    expect(computeSurfable({ ...base, windSpeed: 40, windDirection: 0 })).toBe("yellow");
+  });
+
+  test("50 km/h offshore (0°) is red — even offshore has limits", () => {
+    // Pancer Door: offshore yellowMax=45 → red
+    expect(computeSurfable({ ...base, windSpeed: 50, windDirection: 0 })).toBe("red");
+  });
+
+  test("Pancer (200° SSW facing) — wind from 200° is onshore", () => {
+    // 15 km/h onshore: Pancer onshore greenMax=10 → yellow
+    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 200 }, SPOT_THRESHOLDS.pancer)).toBe("yellow");
+    // Same speed offshore (20°): Pancer offshore greenMax=30 → green
+    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 20 }, SPOT_THRESHOLDS.pancer)).toBe("green");
+  });
+});
