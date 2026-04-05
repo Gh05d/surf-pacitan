@@ -1,7 +1,6 @@
 import type { ForecastDay, HourlyData, SurfableRating, SpotName } from "../../../shared/types";
 import { TideGraph } from "./TideGraph";
-import { Conditions } from "./Conditions";
-import { Weather } from "./Weather";
+import { ConditionsPanel } from "./ConditionsPanel";
 import "./DayView.css";
 
 interface DayViewProps {
@@ -79,39 +78,19 @@ function formatWindow(start: number, end: number): string {
   return `${String(start).padStart(2, "0")}:00–${String(end).padStart(2, "0")}:00`;
 }
 
-function getActiveHourly(day: ForecastDay, isToday: boolean): HourlyData | null {
-  if (day.hourly.length === 0) return null;
-
-  if (isToday) {
-    const currentHour = new Date().getHours();
-    const match = day.hourly.find((h) => h.hour === currentHour);
-    if (match) return match;
-    // Fall back to closest hour
-    return day.hourly.reduce((prev, curr) =>
-      Math.abs(curr.hour - currentHour) < Math.abs(prev.hour - currentHour) ? curr : prev
-    );
-  }
-
-  // For future days, use midday (12:00) or closest
-  const middayMatch = day.hourly.find((h) => h.hour === 12);
-  if (middayMatch) return middayMatch;
-  return day.hourly.reduce((prev, curr) =>
-    Math.abs(curr.hour - 12) < Math.abs(prev.hour - 12) ? curr : prev
-  );
-}
-
 export function DayView({ day, isToday }: DayViewProps) {
-  const activeHourly = getActiveHourly(day, isToday);
   const { windows, reason } = findSpotWindows(day.hourly);
 
   const sunriseMin = parseHHmm(day.astronomy.sunrise);
   const sunsetMin = parseHHmm(day.astronomy.sunset);
   const totalDaylight = sunsetMin - sunriseMin;
 
-  // Position as percentage of the 24h day
   const sunrisePercent = (sunriseMin / (24 * 60)) * 100;
   const sunsetPercent = (sunsetMin / (24 * 60)) * 100;
   const daylightWidth = sunsetPercent - sunrisePercent;
+
+  // Best window start hour for ConditionsPanel default
+  const bestWindowStart = windows.length > 0 ? Math.min(...windows.map((w) => w.start)) : null;
 
   return (
     <div className="day-view">
@@ -180,15 +159,13 @@ export function DayView({ day, isToday }: DayViewProps) {
         isToday={isToday}
       />
 
-      {/* Conditions and weather */}
-      {activeHourly ? (
-        <div className="conditions-weather-row">
-          <Conditions swell={activeHourly.swell} wind={activeHourly.wind} />
-          <Weather weather={activeHourly.weather} />
-        </div>
-      ) : (
-        <div className="no-hourly">No hourly data available</div>
-      )}
+      {/* Conditions panel with time navigation */}
+      <ConditionsPanel
+        hourly={day.hourly}
+        astronomy={day.astronomy}
+        isToday={isToday}
+        bestWindowStart={bestWindowStart}
+      />
     </div>
   );
 }
