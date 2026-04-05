@@ -53,4 +53,4 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - systemd: `surf-pacitan.service` (safe to restart, no persistent state)
 - nginx: `surf-pacitan.conf` → `surf-pacitan.yolo-goldgrube.pp.ua`
 - Static build: `/var/www/surf-pacitan/`
-- Git remote: `origin` (SSH alias `github-surf-pacitan` in `~/.ssh/config` for deploy key). Push with `git push origin main`.
+- Git remote uses SSH alias `github-surf-pacitan` (configured in `~/.ssh/config`) for deploy key.
