@@ -8,6 +8,7 @@ interface SurfableInput {
   tideRising: boolean;
   swellHeight: number;
   windSpeed: number;
+  windDirection: number;
   sunrise: string;
   sunset: string;
 }
@@ -18,20 +19,35 @@ function isWithinDaylight(hour: number, sunrise: string, sunset: string): boolea
   return hour >= sunriseHour && hour < sunsetHour;
 }
 
+export type WindCategory = "offshore" | "crossShore" | "onshore";
+
+export function getWindCategory(windDirection: number, facingDirection: number): WindCategory {
+  const raw = Math.abs(windDirection - facingDirection);
+  const angleDiff = raw > 180 ? 360 - raw : raw;
+
+  if (angleDiff < 60) return "onshore";
+  if (angleDiff > 120) return "offshore";
+  return "crossShore";
+}
+
 export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds = SURFABLE): SurfableRating {
-  const { hour, tidePercent, tideRising, swellHeight, windSpeed, sunrise, sunset } = input;
+  const { hour, tidePercent, tideRising, swellHeight, windSpeed, windDirection, sunrise, sunset } = input;
 
   if (!isWithinDaylight(hour, sunrise, sunset)) return "red";
   if (swellHeight < thresholds.SWELL_YELLOW_MIN) return "red";
-  if (windSpeed > thresholds.WIND_YELLOW_MAX) return "red";
   if (tidePercent < thresholds.TIDE_YELLOW_MIN) return "red";
+
+  const windCategory = getWindCategory(windDirection, thresholds.facingDirection);
+  const windThresholds = thresholds.wind[windCategory];
+
+  if (windSpeed > windThresholds.yellowMax) return "red";
 
   // Falling tide is never green — sandbar beachbreaks need rising water
   if (!tideRising) return "yellow";
 
   const tideGreen = tidePercent >= thresholds.TIDE_GREEN_MIN;
   const swellGreen = swellHeight >= thresholds.SWELL_GREEN_MIN;
-  const windGreen = windSpeed < thresholds.WIND_GREEN_MAX;
+  const windGreen = windSpeed <= windThresholds.greenMax;
 
   if (tideGreen && swellGreen && windGreen) return "green";
 
