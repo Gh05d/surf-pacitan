@@ -66,10 +66,10 @@ function findSpotWindows(hourly: HourlyData[]): { windows: SpotWindow[]; reason:
 
   if (allWindows.length === 0) {
     const hasSwell = hourly.some((h) => h.swell.height >= 0.2);
-    const hasLightWind = hourly.some((h) => h.wind.speed < 35);
+    const hasLightWind = hourly.some((h) => h.wind.speed < 20);
     if (!hasSwell) return { windows: [], reason: "No swell — flat conditions all day." };
     if (!hasLightWind) return { windows: [], reason: "Too much wind — blown out all day." };
-    return { windows: [], reason: "Low tide during daylight hours — sandbar too shallow." };
+    return { windows: [], reason: "Conditions not aligned — check tide, wind direction, and swell." };
   }
 
   return { windows: allWindows, reason: "" };
@@ -161,7 +161,7 @@ export function DayView({ day, isToday }: DayViewProps) {
               })}
             </div>
             <div className="surf-window-note">
-              Rising tide with enough water over the sandbar.
+              Rising tide + favorable wind direction.
             </div>
           </>
         ) : (
