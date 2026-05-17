@@ -21,7 +21,7 @@ function isWithinDaylight(hour: number, sunrise: string, sunset: string): boolea
   return hour >= sunriseHour && hour < sunsetHour;
 }
 
-export type Quality = "red" | "yellow" | "green";
+export type Quality = SurfableRating;
 
 const QUALITY_ORDER: Record<Quality, number> = { red: 0, yellow: 1, green: 2 };
 
