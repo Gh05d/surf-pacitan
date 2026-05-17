@@ -2,11 +2,12 @@ import { useRef, useEffect, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./SpotMap.css";
+import { SPOT_DISPLAY } from "../../shared/spots";
 
-function createSpotIcon() {
+function createSpotIcon(emoji: string) {
   return L.divIcon({
     className: "spot-marker",
-    html: "🏄",
+    html: emoji,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
     popupAnchor: [0, -16],
@@ -14,9 +15,9 @@ function createSpotIcon() {
 }
 
 const SPOTS = [
-  { name: "Teleng Ria", lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly" },
-  { name: "Pancer", lat: -8.2215, lng: 111.0880, desc: "Beachbreak, lefts & rights" },
-  { name: "Pancer Door", lat: -8.2298, lng: 111.1026, desc: "River mouth sandbar, left" },
+  { name: "Teleng Ria", lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly", emoji: SPOT_DISPLAY.find((s) => s.key === "telengRia")!.emoji },
+  { name: "Pancer", lat: -8.2215, lng: 111.0880, desc: "Beachbreak, lefts & rights", emoji: SPOT_DISPLAY.find((s) => s.key === "pancer")!.emoji },
+  { name: "Pancer Door", lat: -8.2298, lng: 111.1026, desc: "River mouth sandbar, left", emoji: SPOT_DISPLAY.find((s) => s.key === "pancerDoor")!.emoji },
 ];
 
 const DEFAULT_CENTER: L.LatLngExpression = [-8.227, 111.088];
@@ -48,7 +49,7 @@ export function SpotMap() {
     ).addTo(map);
 
     markersRef.current = SPOTS.map((spot) => {
-      const marker = L.marker([spot.lat, spot.lng], { icon: createSpotIcon() }).addTo(map);
+      const marker = L.marker([spot.lat, spot.lng], { icon: createSpotIcon(spot.emoji) }).addTo(map);
       marker.bindPopup(`<strong>${spot.name}</strong><br>${spot.desc}`);
       return marker;
     });
