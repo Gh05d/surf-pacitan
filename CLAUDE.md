@@ -33,7 +33,9 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 **Spot geography (local naming, west to east):** Pancer (river mouth, west end) → Pancer Door (long middle beach) → Teleng Ria (east end). Public surf guides (surfindonesia, surfline) describe "Pancer" / "Pancer Door" as the eastern river-mouth break — that conflicts with the local convention used by this app's UI. Follow the local convention; ignore guide naming for spot identity.
 
-**Frontend:** Swipeable day views with uPlot tide chart. Canvas overlays for surfable zone bands, now marker, and H/L labels are in `TideGraph.tsx` draw hooks (Canvas API, not React styles). `ConditionsPanel.tsx` groups Swell/Wind/Weather cards into a single panel with 3h time block navigation (◀ ▶ arrows, daylight blocks only). Each component has a co-located `.css` file using CSS nesting.
+**Known mismatch:** `SpotMap.tsx`'s `lat`/`lng` for the three spots don't match the local west-to-east convention above (Teleng Ria has the most western lng `111.0790`, Pancer Door the most eastern `111.1026`). Either the local labels or the coordinates are wrong; user has not confirmed which. Don't silently "fix" by reordering — flag and ask.
+
+**Frontend:** Swipeable day views with uPlot tide chart. Canvas overlays in `TideGraph.tsx` draw hooks (Canvas API, not React styles): night overlay, now marker, H/L tide-extreme labels, and three per-spot rating strips (P/PD/TR) at the bottom of the plot area. `ConditionsPanel.tsx` groups Swell/Wind/Weather cards into a single panel with 3h time block navigation (◀ ▶ arrows, daylight blocks only). Each component has a co-located `.css` file using CSS nesting.
 
 ## Environment Variables
 
@@ -55,6 +57,8 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - StormGlass wind was **m/s** (conversion in `stormglass.ts`). Open-Meteo wind is already **km/h** — no conversion needed.
 - All StormGlass timestamps are UTC. Parsers convert to UTC+7 (Asia/Jakarta) for local time.
 - Shared types live in `src/shared/types.ts` — used by both server and client.
+- Per-spot UI metadata (label / abbreviation / emoji) lives in `src/shared/spots.ts` as `SPOT_DISPLAY`, ordered west-to-east. Use it for any spot-labeled UI; don't hardcode `"Pancer"`/`"🏖️"` etc. in components.
+- TideGraph reserves the bottom 77px of the plot area for the per-spot strips via `STRIP_RESERVED` + the `scales.y.range` callback (inflates the y-data range downward by `STRIP_RESERVED * (dataRange / usableHeight)`). To add a new fixed-pixel canvas overlay, extend the reservation, don't try to draw past `u.bbox`.
 
 ## Deployment
 
