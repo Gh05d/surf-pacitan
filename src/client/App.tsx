@@ -19,6 +19,7 @@ export function App() {
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const [animating, setAnimating] = useState(false);
   const swipeStartX = useRef(0);
+  const multiTouchActive = useRef(false);
 
   function navigateTo(newIndex: number) {
     if (newIndex === dayIndex || newIndex < 0 || newIndex >= days.length || animating) return;
@@ -34,12 +35,26 @@ export function App() {
   function handleTouchStart(e: React.TouchEvent) {
     // Ignore touches inside the map
     if ((e.target as HTMLElement).closest(".spot-map")) return;
+    // Pinch on the tide chart: skip swipe detection until all fingers lift
+    if (e.touches.length > 1) {
+      multiTouchActive.current = true;
+      swipeStartX.current = 0;
+      return;
+    }
     swipeStartX.current = e.touches[0].clientX;
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
     // Ignore touches inside the map
     if ((e.target as HTMLElement).closest(".spot-map")) return;
+    if (multiTouchActive.current) {
+      if (e.touches.length === 0) {
+        multiTouchActive.current = false;
+        swipeStartX.current = 0;
+      }
+      return;
+    }
+    if (swipeStartX.current === 0) return;
     const delta = swipeStartX.current - e.changedTouches[0].clientX;
     swipeStartX.current = 0;
     if (Math.abs(delta) < 50) return;

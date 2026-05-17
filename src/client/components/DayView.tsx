@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { ForecastDay, HourlyData, SurfableRating, SpotName } from "../../../shared/types";
 import { TideGraph } from "./TideGraph";
+import { TideGraphModal } from "./TideGraphModal";
 import { ConditionsPanel } from "./ConditionsPanel";
 import "./DayView.css";
 
@@ -80,6 +82,7 @@ function formatWindow(start: number, end: number): string {
 
 export function DayView({ day, isToday }: DayViewProps) {
   const { windows, reason } = findSpotWindows(day.hourly);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const sunriseMin = parseHHmm(day.astronomy.sunrise);
   const sunsetMin = parseHHmm(day.astronomy.sunset);
@@ -157,6 +160,7 @@ export function DayView({ day, isToday }: DayViewProps) {
         tideExtremes={day.tideExtremes}
         astronomy={day.astronomy}
         isToday={isToday}
+        onExpand={() => setModalOpen(true)}
       />
 
       {/* Conditions panel with time navigation */}
@@ -165,6 +169,16 @@ export function DayView({ day, isToday }: DayViewProps) {
         astronomy={day.astronomy}
         isToday={isToday}
         bestWindowStart={bestWindowStart}
+      />
+
+      <TideGraphModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        hourly={day.hourly}
+        tideExtremes={day.tideExtremes}
+        astronomy={day.astronomy}
+        isToday={isToday}
+        date={day.date}
       />
     </div>
   );

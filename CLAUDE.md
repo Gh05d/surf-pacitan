@@ -48,6 +48,9 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - TideGraph canvas drawing code (`hooks.draw`) uses Canvas API, not React styles — don't try to extract those to CSS.
 - uPlot clips drawing to `u.bbox` — don't try to draw spot bands or labels outside the plot area via Canvas. Use HTML elements below the chart instead.
 - The swipe handler in `App.tsx` excludes `.spot-map` via `closest()` check. Any new interactive component with its own touch handling needs the same exclusion.
+- For multi-touch components: `App.tsx` swipe handler also tracks `multiTouchActive` and skips swipe detection if any 2-finger touch occurred during the gesture. Don't `stopPropagation` on every touchstart from a child — let App see at least one `touches.length > 1` event.
+- uPlot `scales.x.range` must be a **function** (`(u, min, max) => [min ?? def, max ?? def]`), not a static array `[a, b]` — uPlot wraps static arrays via `fnOrSelf` so `setScale()` calls are silently overridden on the next render.
+- Pinch-zoom on the tide chart lives **only inside `TideGraphModal`** (gated by `enableZoom` prop on `TideGraph`). The inline chart attaches no touch handlers — inline pinch conflicts with the App day-swipe and uPlot's drag handlers, and a 200px-tall chart is too small to pinch usefully. Tap the chart or `⤢ Zoom` button to open the modal.
 - Use relative imports (`../shared/types`, `./config`), not `@shared/*` path aliases — `bun test` doesn't resolve tsconfig paths.
 - StormGlass wind was **m/s** (conversion in `stormglass.ts`). Open-Meteo wind is already **km/h** — no conversion needed.
 - All StormGlass timestamps are UTC. Parsers convert to UTC+7 (Asia/Jakarta) for local time.
@@ -59,3 +62,10 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - nginx: `surf-pacitan.conf` → `surf-pacitan.yolo-goldgrube.pp.ua`
 - Static build: `/var/www/surf-pacitan/`
 - Git remote uses SSH alias `github-surf-pacitan` (configured in `~/.ssh/config`) for deploy key.
+
+## Service Worker / Cache Busting
+
+- Bump `CACHE_NAME` in `public/sw.js` on every deploy that ships JS/CSS changes — the SW deletes old caches on activate.
+- SW is **network-first for HTML** (so the freshest content-hashed bundle is always referenced) and **stale-while-revalidate for `/assets/*`** (hashed filenames make this safe).
+- `index.html` listens for `controllerchange` and auto-reloads once the new SW takes over, so users get fresh content on a single reload after a deploy.
+- Verify what's actually deployed: `grep "<pattern>" /var/www/surf-pacitan/assets/index-*.js` (filenames are content-hashed by Vite).
