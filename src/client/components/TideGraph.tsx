@@ -3,6 +3,7 @@ import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import "./TideGraph.css";
 import type { HourlyData, TideExtreme, AstronomyData, SurfableRating } from "../../../shared/types";
+import { SPOT_DISPLAY } from "../../shared/spots";
 
 interface TideGraphProps {
   hourly: HourlyData[];
@@ -18,14 +19,21 @@ interface TideGraphProps {
 }
 
 const RATING_COLORS: Record<SurfableRating, string> = {
-  green: "rgba(45, 212, 168, 0.18)",
-  yellow: "rgba(240, 168, 48, 0.18)",
-  red: "rgba(224, 96, 80, 0.15)",
+  green: "rgba(45, 212, 168, 0.55)",
+  yellow: "rgba(240, 168, 48, 0.5)",
+  red: "rgba(224, 96, 80, 0.45)",
 };
 
 const FULL_MIN = 0;
 const FULL_MAX = 23 * 3600;
 const MIN_RANGE = 60 * 60; // 1h minimum visible range
+
+const STRIP_HEIGHT = 14; // px per spot strip
+const STRIP_GAP = 2;     // px between strips
+const STRIP_BLOCK_HEIGHT = STRIP_HEIGHT * 3 + STRIP_GAP * 2; // 46px total
+const STRIP_TOP_DIVIDER = 1; // px top separator line
+const STRIP_RESERVED = STRIP_BLOCK_HEIGHT + STRIP_TOP_DIVIDER; // 47px reserved
+const STRIP_LEFT_GUTTER = 22; // px for abbreviation labels (currently unused but reserved)
 
 function parseHHmm(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
@@ -69,6 +77,15 @@ export function TideGraph({
     const times = new Float64Array(hourly.map((h) => h.hour * 3600));
     const heights = new Float64Array(hourly.map((h) => h.tide.height));
 
+    const ratingsBySpot = new Map<string, Map<number, SurfableRating>>();
+    for (const spot of SPOT_DISPLAY) {
+      const m = new Map<number, SurfableRating>();
+      for (const h of hourly) {
+        m.set(h.hour, h.surfable[spot.key]);
+      }
+      ratingsBySpot.set(spot.key, m);
+    }
+
     const sunriseHour = parseHHmm(astronomy.sunrise);
     const sunsetHour = parseHHmm(astronomy.sunset);
 
@@ -85,9 +102,16 @@ export function TideGraph({
             dataMin != null && dataMax != null ? [dataMin, dataMax] : [FULL_MIN, FULL_MAX],
         },
         y: {
-          range: (_, dataMin, dataMax) => {
-            const pad = 0.2;
-            return [dataMin - pad, dataMax + pad];
+          range: (u, dataMin, dataMax) => {
+            // Reserve STRIP_RESERVED px at the bottom of the bbox for the spot strips.
+            // We inflate the data range downward so the tide curve's visible range
+            // only fills (height - STRIP_RESERVED) of the bbox.
+            const tidePadTop = 0.2;
+            const usable = (u.height - STRIP_RESERVED) || 1;
+            const dataRange = (dataMax - dataMin) || 1;
+            const perPx = dataRange / usable;
+            const tidePadBottom = STRIP_RESERVED * perPx;
+            return [dataMin - tidePadBottom, dataMax + tidePadTop];
           },
         },
       },
@@ -206,6 +230,54 @@ export function TideGraph({
               ctx.font = `${subFontPx}px system-ui, sans-serif`;
               ctx.fillStyle = isHigh ? "rgba(45, 212, 168, 0.85)" : "rgba(224, 96, 80, 0.85)";
               ctx.fillText(timeLabel, ex, ey + offsetY + (isHigh ? -subOffset : subOffset));
+              ctx.restore();
+            }
+
+            // --- Per-spot rating strips at the bottom of the plot area ---
+            const bboxBottom = u.bbox.top + u.bbox.height;
+            const stripsTop = bboxBottom - STRIP_RESERVED;
+
+            // Top separator line above strips
+            ctx.save();
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.10)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(u.bbox.left, stripsTop);
+            ctx.lineTo(u.bbox.left + u.bbox.width, stripsTop);
+            ctx.stroke();
+            ctx.restore();
+
+            for (let i = 0; i < SPOT_DISPLAY.length; i++) {
+              const spot = SPOT_DISPLAY[i];
+              const ratings = ratingsBySpot.get(spot.key);
+              if (!ratings) continue;
+
+              const stripY = stripsTop + STRIP_TOP_DIVIDER + i * (STRIP_HEIGHT + STRIP_GAP);
+
+              for (let hour = 0; hour < 24; hour++) {
+                const rating = ratings.get(hour);
+                const xStart = u.valToPos(hour * 3600, "x", true);
+                const xEnd = u.valToPos((hour + 1) * 3600, "x", true);
+
+                // Night hours: render as night-overlay color, not red
+                const isNight = hour < Math.floor(sunriseHour) || hour >= Math.floor(sunsetHour);
+                if (isNight) {
+                  ctx.fillStyle = "rgba(4, 10, 20, 0.45)";
+                } else if (!rating) {
+                  continue;
+                } else {
+                  ctx.fillStyle = RATING_COLORS[rating];
+                }
+                ctx.fillRect(xStart, stripY, xEnd - xStart, STRIP_HEIGHT);
+              }
+
+              // Abbreviation label in the left gutter
+              ctx.save();
+              ctx.fillStyle = "rgba(170, 187, 204, 0.85)";
+              ctx.font = "9px ui-monospace, monospace";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(spot.abbr, u.bbox.left + 4, stripY + STRIP_HEIGHT / 2);
               ctx.restore();
             }
 
