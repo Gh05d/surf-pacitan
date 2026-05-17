@@ -274,7 +274,7 @@ export function TideGraph({
               // Abbreviation label in the left gutter
               ctx.save();
               ctx.fillStyle = "rgba(170, 187, 204, 0.85)";
-              ctx.font = "9px ui-monospace, monospace";
+              ctx.font = "bold 12px ui-monospace, monospace";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
               ctx.fillText(spot.abbr, u.bbox.left + 4, stripY + STRIP_HEIGHT / 2);
