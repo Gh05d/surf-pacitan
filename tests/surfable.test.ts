@@ -383,8 +383,11 @@ describe("computeSurfable — 2026-05-17 validation table", () => {
   test("Pancer Door 07:00 tide 92% rising → yellow (in 80-95 band)", () => {
     expect(computeSurfable(input(7, 92, true), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
   });
-  test("Pancer Door 09:00 tide 98% falling → red (above yellowMax 95)", () => {
-    expect(computeSurfable(input(9, 98, false), SPOT_THRESHOLDS.pancerDoor)).toBe("red");
+  test("Pancer Door 09:00 tide 98% falling → yellow (in yellow band, falling tide cap)", () => {
+    expect(computeSurfable(input(9, 98, false), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
+  });
+  test("Pancer Door 08:00 tide 100% peak → yellow", () => {
+    expect(computeSurfable(input(8, 100, true), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
   });
   test("Pancer Door 11:00 tide 67% falling → yellow (green capped by falling)", () => {
     expect(computeSurfable(input(11, 67, false), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");

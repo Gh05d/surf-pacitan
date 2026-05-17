@@ -84,7 +84,7 @@ export const SURFABLE_PANCER: SpotThresholds = {
 };
 
 export const SURFABLE_PANCER_DOOR: SpotThresholds = {
-  tide:        { greenMin: 35, greenMax: 80, yellowMin: 20, yellowMax: 95 },
+  tide:        { greenMin: 35, greenMax: 80, yellowMin: 20, yellowMax: 100 },
   swellDir:    { ideal: 210, greenWindow: 25, yellowWindow: 45 },
   swellHeight: { greenMin: 0.5, yellowMin: 0.3 },
   swellPeriod: { greenMin: 8,   yellowMin: 6 },
