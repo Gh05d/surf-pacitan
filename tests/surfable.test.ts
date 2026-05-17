@@ -338,3 +338,78 @@ describe("computeWindQuality", () => {
     expect(computeWindQuality(20, 90, t as any)).toBe("green");
   });
 });
+
+describe("computeSurfable — 2026-05-17 validation table", () => {
+  const sunrise = "05:41";
+  const sunset = "17:25";
+
+  function input(hour: number, tidePercent: number, tideRising: boolean) {
+    return {
+      hour,
+      tidePercent,
+      tideRising,
+      swellHeight: 1.5,
+      swellPeriod: 11,
+      swellDirection: 201,
+      windSpeed: 6,
+      windDirection: 90,
+      sunrise,
+      sunset,
+    };
+  }
+
+  test("Pancer 05:00 tide 57% rising → green", () => {
+    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.pancer)).toBe("green");
+  });
+  test("Pancer 06:00 tide 76% rising → yellow (above greenMax 60)", () => {
+    expect(computeSurfable(input(6, 76, true), SPOT_THRESHOLDS.pancer)).toBe("yellow");
+  });
+  test("Pancer 07:00 tide 92% rising → red (above yellowMax 80)", () => {
+    expect(computeSurfable(input(7, 92, true), SPOT_THRESHOLDS.pancer)).toBe("red");
+  });
+  test("Pancer 08:00 tide 100% peak → red", () => {
+    expect(computeSurfable(input(8, 100, true), SPOT_THRESHOLDS.pancer)).toBe("red");
+  });
+  test("Pancer 09:00 tide 98% falling → red (still above yellowMax)", () => {
+    expect(computeSurfable(input(9, 98, false), SPOT_THRESHOLDS.pancer)).toBe("red");
+  });
+
+  test("Pancer Door 05:00 tide 57% rising → green", () => {
+    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.pancerDoor)).toBe("green");
+  });
+  test("Pancer Door 06:00 tide 76% rising → green", () => {
+    expect(computeSurfable(input(6, 76, true), SPOT_THRESHOLDS.pancerDoor)).toBe("green");
+  });
+  test("Pancer Door 07:00 tide 92% rising → yellow (in 80-95 band)", () => {
+    expect(computeSurfable(input(7, 92, true), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
+  });
+  test("Pancer Door 09:00 tide 98% falling → red (above yellowMax 95)", () => {
+    expect(computeSurfable(input(9, 98, false), SPOT_THRESHOLDS.pancerDoor)).toBe("red");
+  });
+  test("Pancer Door 11:00 tide 67% falling → yellow (green capped by falling)", () => {
+    expect(computeSurfable(input(11, 67, false), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
+  });
+
+  test("Teleng Ria 05:00 tide 57% rising → green", () => {
+    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.telengRia)).toBe("green");
+  });
+  test("Teleng Ria 07:00 tide 92% rising → yellow (above greenMax 90)", () => {
+    expect(computeSurfable(input(7, 92, true), SPOT_THRESHOLDS.telengRia)).toBe("yellow");
+  });
+  test("Teleng Ria 08:00 tide 100% peak → yellow", () => {
+    expect(computeSurfable(input(8, 100, true), SPOT_THRESHOLDS.telengRia)).toBe("yellow");
+  });
+  test("Teleng Ria 09:00 tide 98% falling → yellow", () => {
+    expect(computeSurfable(input(9, 98, false), SPOT_THRESHOLDS.telengRia)).toBe("yellow");
+  });
+
+  test("All spots red before sunrise", () => {
+    expect(computeSurfable(input(4, 50, true), SPOT_THRESHOLDS.pancer)).toBe("red");
+    expect(computeSurfable(input(4, 50, true), SPOT_THRESHOLDS.pancerDoor)).toBe("red");
+    expect(computeSurfable(input(4, 50, true), SPOT_THRESHOLDS.telengRia)).toBe("red");
+  });
+
+  test("Falling-tide cap: green factors capped to yellow on falling tide", () => {
+    expect(computeSurfable(input(10, 50, false), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
+  });
+});

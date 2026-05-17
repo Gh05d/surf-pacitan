@@ -94,28 +94,21 @@ export function computeWindQuality(
   return "yellow";
 }
 
-export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds = SURFABLE): SurfableRating {
-  const { hour, tidePercent, tideRising, swellHeight, windSpeed, windDirection, sunrise, sunset } = input;
+export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds = SURFABLE): Quality {
+  if (!isWithinDaylight(input.hour, input.sunrise, input.sunset)) return "red";
 
-  if (!isWithinDaylight(hour, sunrise, sunset)) return "red";
-  if (swellHeight < thresholds.SWELL_YELLOW_MIN) return "red";
-  if (tidePercent < thresholds.TIDE_YELLOW_MIN) return "red";
+  const tideQ      = computeTideQuality(input.tidePercent, thresholds.tide);
+  const swellDirQ  = computeSwellDirQuality(input.swellDirection, thresholds.swellDir);
+  const swellHQ    = computeSwellHeightQuality(input.swellHeight, thresholds.swellHeight);
+  const swellPQ    = computeSwellPeriodQuality(input.swellPeriod, thresholds.swellPeriod);
+  const windQ      = computeWindQuality(input.windSpeed, input.windDirection, thresholds);
 
-  const windCategory = getWindCategory(windDirection, thresholds.facingDirection);
-  const windThresholds = thresholds.wind[windCategory];
+  let final = minQuality([tideQ, swellDirQ, swellHQ, swellPQ, windQ]);
 
-  if (windSpeed > windThresholds.yellowMax) return "red";
+  // Falling-tide cap: sandbar breaks need rising water — green degrades to yellow.
+  if (!input.tideRising && final === "green") final = "yellow";
 
-  // Falling tide is never green — sandbar beachbreaks need rising water
-  if (!tideRising) return "yellow";
-
-  const tideGreen = tidePercent >= thresholds.TIDE_GREEN_MIN;
-  const swellGreen = swellHeight >= thresholds.SWELL_GREEN_MIN;
-  const windGreen = windSpeed <= windThresholds.greenMax;
-
-  if (tideGreen && swellGreen && windGreen) return "green";
-
-  return "yellow";
+  return final;
 }
 
 export function computeAllSpotRatings(input: SurfableInput): SpotRatings {

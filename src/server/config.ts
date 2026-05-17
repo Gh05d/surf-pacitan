@@ -58,7 +58,7 @@ export interface SpotThresholds {
 }
 
 export const SURFABLE_TELENG_RIA: SpotThresholds = {
-  tide:        { greenMin: 50, greenMax: 90, yellowMin: 30, yellowMax: 98 },
+  tide:        { greenMin: 50, greenMax: 90, yellowMin: 30, yellowMax: 100 },
   swellDir:    { ideal: 215, greenWindow: 25, yellowWindow: 45 },
   swellHeight: { greenMin: 0.4, yellowMin: 0.2 },
   swellPeriod: { greenMin: 7,   yellowMin: 5 },
