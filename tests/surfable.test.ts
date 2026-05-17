@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality } from "../src/server/surfable";
+import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality } from "../src/server/surfable";
 import { SPOT_THRESHOLDS } from "../src/server/config";
 
 describe("getWindCategory", () => {
@@ -196,6 +196,33 @@ describe("computeTideQuality", () => {
   });
   test("below yellowMin → red", () => {
     expect(computeTideQuality(10, t)).toBe("red");
+  });
+});
+
+describe("computeSwellDirQuality", () => {
+  const t = { ideal: 195, greenWindow: 15, yellowWindow: 30 };
+
+  test("exactly on ideal", () => {
+    expect(computeSwellDirQuality(195, t)).toBe("green");
+  });
+  test("within green window", () => {
+    expect(computeSwellDirQuality(205, t)).toBe("green");
+  });
+  test("at green edge", () => {
+    expect(computeSwellDirQuality(210, t)).toBe("green");
+  });
+  test("just outside green, inside yellow", () => {
+    expect(computeSwellDirQuality(215, t)).toBe("yellow");
+  });
+  test("at yellow edge", () => {
+    expect(computeSwellDirQuality(225, t)).toBe("yellow");
+  });
+  test("outside yellow → red", () => {
+    expect(computeSwellDirQuality(230, t)).toBe("red");
+  });
+  test("wraparound: ideal 10°, swell at 350° (Δ=20°)", () => {
+    const wrap = { ideal: 10, greenWindow: 15, yellowWindow: 30 };
+    expect(computeSwellDirQuality(350, wrap)).toBe("yellow");
   });
 });
 

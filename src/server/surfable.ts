@@ -43,6 +43,16 @@ export function computeTideQuality(
   return "yellow";
 }
 
+export function computeSwellDirQuality(
+  swellDirection: number,
+  t: SpotThresholds["swellDir"]
+): Quality {
+  const d = angularDistance(swellDirection, t.ideal);
+  if (d > t.yellowWindow) return "red";
+  if (d <= t.greenWindow) return "green";
+  return "yellow";
+}
+
 export type WindCategory = "offshore" | "crossShore" | "onshore";
 
 export function getWindCategory(windDirection: number, facingDirection: number): WindCategory {
