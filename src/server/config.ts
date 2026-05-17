@@ -58,12 +58,11 @@ export interface SpotThresholds {
 }
 
 export const SURFABLE_TELENG_RIA: SpotThresholds = {
-  TIDE_GREEN_MIN: 25,
-  TIDE_GREEN_FALLING_MIN: 60,
-  TIDE_YELLOW_MIN: 15,
-  SWELL_GREEN_MIN: 0.4,
-  SWELL_YELLOW_MIN: 0.2,
-  facingDirection: 180,
+  tide:        { greenMin: 50, greenMax: 90, yellowMin: 30, yellowMax: 98 },
+  swellDir:    { ideal: 215, greenWindow: 25, yellowWindow: 45 },
+  swellHeight: { greenMin: 0.4, yellowMin: 0.2 },
+  swellPeriod: { greenMin: 7,   yellowMin: 5 },
+  facingDirection: 195,
   wind: {
     offshore:   { greenMax: 35, yellowMax: 50 },
     crossShore: { greenMax: 25, yellowMax: 35 },
@@ -72,12 +71,11 @@ export const SURFABLE_TELENG_RIA: SpotThresholds = {
 };
 
 export const SURFABLE_PANCER: SpotThresholds = {
-  TIDE_GREEN_MIN: 40,
-  TIDE_GREEN_FALLING_MIN: 75,
-  TIDE_YELLOW_MIN: 25,
-  SWELL_GREEN_MIN: 0.5,
-  SWELL_YELLOW_MIN: 0.3,
-  facingDirection: 200,
+  tide:        { greenMin: 30, greenMax: 60, yellowMin: 15, yellowMax: 80 },
+  swellDir:    { ideal: 195, greenWindow: 15, yellowWindow: 30 },
+  swellHeight: { greenMin: 0.5, yellowMin: 0.3 },
+  swellPeriod: { greenMin: 8,   yellowMin: 6 },
+  facingDirection: 195,
   wind: {
     offshore:   { greenMax: 30, yellowMax: 45 },
     crossShore: { greenMax: 20, yellowMax: 30 },
@@ -86,12 +84,11 @@ export const SURFABLE_PANCER: SpotThresholds = {
 };
 
 export const SURFABLE_PANCER_DOOR: SpotThresholds = {
-  TIDE_GREEN_MIN: 50,
-  TIDE_GREEN_FALLING_MIN: 80,
-  TIDE_YELLOW_MIN: 30,
-  SWELL_GREEN_MIN: 0.5,
-  SWELL_YELLOW_MIN: 0.3,
-  facingDirection: 180,
+  tide:        { greenMin: 35, greenMax: 80, yellowMin: 20, yellowMax: 95 },
+  swellDir:    { ideal: 210, greenWindow: 25, yellowWindow: 45 },
+  swellHeight: { greenMin: 0.5, yellowMin: 0.3 },
+  swellPeriod: { greenMin: 8,   yellowMin: 6 },
+  facingDirection: 195,
   wind: {
     offshore:   { greenMax: 30, yellowMax: 45 },
     crossShore: { greenMax: 20, yellowMax: 30 },
