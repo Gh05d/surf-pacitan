@@ -36,16 +36,24 @@ export interface WindDirectionThresholds {
 }
 
 export interface SpotThresholds {
-  TIDE_GREEN_MIN: number;
-  TIDE_GREEN_FALLING_MIN: number;
-  TIDE_YELLOW_MIN: number;
-  SWELL_GREEN_MIN: number;
-  SWELL_YELLOW_MIN: number;
+  tide: {
+    greenMin: number;
+    greenMax: number;
+    yellowMin: number;
+    yellowMax: number;
+  };
+  swellDir: {
+    ideal: number;       // degrees, 0=N
+    greenWindow: number; // ± degrees still green
+    yellowWindow: number;// ± degrees still yellow
+  };
+  swellHeight: { greenMin: number; yellowMin: number };
+  swellPeriod: { greenMin: number; yellowMin: number };
   facingDirection: number;
   wind: {
-    offshore: WindDirectionThresholds;
+    offshore:   WindDirectionThresholds;
     crossShore: WindDirectionThresholds;
-    onshore: WindDirectionThresholds;
+    onshore:    WindDirectionThresholds;
   };
 }
 

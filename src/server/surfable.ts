@@ -7,6 +7,8 @@ interface SurfableInput {
   tidePercent: number;
   tideRising: boolean;
   swellHeight: number;
+  swellPeriod: number;       // seconds
+  swellDirection: number;    // degrees, 0=N
   windSpeed: number;
   windDirection: number;
   sunrise: string;
