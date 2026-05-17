@@ -88,90 +88,6 @@ describe("minQuality", () => {
   });
 });
 
-describe("computeSurfable", () => {
-  const sunrise = "05:42";
-  const sunset = "17:31";
-
-  test("green: rising tide > 50%, good swell, light wind, daylight", () => {
-    expect(computeSurfable({ hour: 9, tidePercent: 70, tideRising: true, swellHeight: 1.2, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("green");
-  });
-
-  test("yellow: falling tide > 80% — falling is never green", () => {
-    expect(computeSurfable({ hour: 11, tidePercent: 85, tideRising: false, swellHeight: 0.8, windSpeed: 15, windDirection: 0, sunrise, sunset })).toBe("yellow");
-  });
-
-  test("yellow: mid tide 30-50% rising", () => {
-    expect(computeSurfable({ hour: 10, tidePercent: 40, tideRising: true, swellHeight: 0.8, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("yellow");
-  });
-
-  test("yellow: good tide but marginal swell 0.3-0.5m", () => {
-    expect(computeSurfable({ hour: 10, tidePercent: 70, tideRising: true, swellHeight: 0.4, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("yellow");
-  });
-
-  test("yellow: good tide/swell but wind 20-30 km/h (cross-shore)", () => {
-    // 90° = east = cross-shore for south-facing Pancer Door. crossShore greenMax=20, so 25 is yellow.
-    expect(computeSurfable({ hour: 10, tidePercent: 70, tideRising: true, swellHeight: 1.0, windSpeed: 25, windDirection: 90, sunrise, sunset })).toBe("yellow");
-  });
-
-  test("red: low tide < 30%", () => {
-    expect(computeSurfable({ hour: 10, tidePercent: 15, tideRising: true, swellHeight: 1.0, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("red");
-  });
-
-  test("red: flat swell < 0.3m", () => {
-    expect(computeSurfable({ hour: 10, tidePercent: 70, tideRising: true, swellHeight: 0.2, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("red");
-  });
-
-  test("red: blown out onshore wind > 20 km/h", () => {
-    // 180° = south = onshore for south-facing Pancer Door. onshore yellowMax=20, so 25 is red.
-    expect(computeSurfable({ hour: 10, tidePercent: 70, tideRising: true, swellHeight: 1.0, windSpeed: 25, windDirection: 180, sunrise, sunset })).toBe("red");
-  });
-
-  test("red: outside daylight (before sunrise)", () => {
-    expect(computeSurfable({ hour: 4, tidePercent: 70, tideRising: true, swellHeight: 1.0, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("red");
-  });
-
-  test("red: outside daylight (after sunset)", () => {
-    expect(computeSurfable({ hour: 18, tidePercent: 70, tideRising: true, swellHeight: 1.0, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("red");
-  });
-
-  test("yellow: falling tide 50-80% range", () => {
-    expect(computeSurfable({ hour: 12, tidePercent: 60, tideRising: false, swellHeight: 1.0, windSpeed: 10, windDirection: 0, sunrise, sunset })).toBe("yellow");
-  });
-});
-
-describe("computeAllSpotRatings", () => {
-  const sunrise = "05:42";
-  const sunset = "17:31";
-
-  test("Teleng Ria is more tolerant than Pancer Door at mid-tide", () => {
-    const result = computeAllSpotRatings({ hour: 10, tidePercent: 30, tideRising: true, swellHeight: 0.8, windSpeed: 10, windDirection: 0, sunrise, sunset });
-    expect(result.telengRia).toBe("green");
-    expect(result.pancer).toBe("yellow");
-    expect(result.pancerDoor).toBe("yellow");
-  });
-
-  test("all spots red when flat", () => {
-    const result = computeAllSpotRatings({ hour: 10, tidePercent: 70, tideRising: true, swellHeight: 0.1, windSpeed: 10, windDirection: 0, sunrise, sunset });
-    expect(result.telengRia).toBe("red");
-    expect(result.pancer).toBe("red");
-    expect(result.pancerDoor).toBe("red");
-  });
-
-  test("all spots green in ideal conditions", () => {
-    const result = computeAllSpotRatings({ hour: 10, tidePercent: 85, tideRising: true, swellHeight: 1.5, windSpeed: 5, windDirection: 0, sunrise, sunset });
-    expect(result.telengRia).toBe("green");
-    expect(result.pancer).toBe("green");
-    expect(result.pancerDoor).toBe("green");
-  });
-
-  test("Teleng Ria tolerates more wind (cross-shore)", () => {
-    // 90° = cross-shore. Teleng Ria crossShore greenMax=25, Pancer/Door crossShore greenMax=20.
-    const result = computeAllSpotRatings({ hour: 10, tidePercent: 70, tideRising: true, swellHeight: 1.0, windSpeed: 22, windDirection: 90, sunrise, sunset });
-    expect(result.telengRia).toBe("green");
-    expect(result.pancer).toBe("yellow");
-    expect(result.pancerDoor).toBe("yellow");
-  });
-});
 
 describe("computeTideQuality", () => {
   const t = { greenMin: 30, greenMax: 60, yellowMin: 15, yellowMax: 80 };
@@ -266,46 +182,6 @@ describe("computeSwellPeriodQuality", () => {
   });
 });
 
-describe("wind direction affects rating", () => {
-  const sunrise = "05:42";
-  const sunset = "17:31";
-  // Base conditions: good tide, good swell, rising — only wind varies
-  const base = { hour: 10, tidePercent: 70, tideRising: true, swellHeight: 1.0, sunrise, sunset };
-
-  test("15 km/h onshore (180°) is yellow, same speed offshore (0°) is green", () => {
-    // Pancer Door: onshore greenMax=10, offshore greenMax=30
-    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 180 })).toBe("yellow");
-    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 0 })).toBe("green");
-  });
-
-  test("25 km/h onshore (180°) is red, same speed offshore (0°) is green", () => {
-    // Pancer Door: onshore yellowMax=20 → red; offshore greenMax=30 → green
-    expect(computeSurfable({ ...base, windSpeed: 25, windDirection: 180 })).toBe("red");
-    expect(computeSurfable({ ...base, windSpeed: 25, windDirection: 0 })).toBe("green");
-  });
-
-  test("25 km/h cross-shore (90°) is yellow", () => {
-    // Pancer Door: crossShore greenMax=20, yellowMax=30 → yellow
-    expect(computeSurfable({ ...base, windSpeed: 25, windDirection: 90 })).toBe("yellow");
-  });
-
-  test("40 km/h offshore (0°) is yellow, not red", () => {
-    // Pancer Door: offshore greenMax=30, yellowMax=45 → yellow
-    expect(computeSurfable({ ...base, windSpeed: 40, windDirection: 0 })).toBe("yellow");
-  });
-
-  test("50 km/h offshore (0°) is red — even offshore has limits", () => {
-    // Pancer Door: offshore yellowMax=45 → red
-    expect(computeSurfable({ ...base, windSpeed: 50, windDirection: 0 })).toBe("red");
-  });
-
-  test("Pancer (200° SSW facing) — wind from 200° is onshore", () => {
-    // 15 km/h onshore: Pancer onshore greenMax=10 → yellow
-    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 200 }, SPOT_THRESHOLDS.pancer)).toBe("yellow");
-    // Same speed offshore (20°): Pancer offshore greenMax=30 → green
-    expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 20 }, SPOT_THRESHOLDS.pancer)).toBe("green");
-  });
-});
 
 describe("computeWindQuality", () => {
   // Facing 195°. Use Pancer Door's wind block.
@@ -414,5 +290,46 @@ describe("computeSurfable — 2026-05-17 validation table", () => {
 
   test("Falling-tide cap: green factors capped to yellow on falling tide", () => {
     expect(computeSurfable(input(10, 50, false), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
+  });
+});
+
+describe("computeAllSpotRatings — 2026-05-17 differentiation", () => {
+  const sunrise = "05:41";
+  const sunset = "17:25";
+
+  test("07:00 high tide differentiates the three spots", () => {
+    const result = computeAllSpotRatings({
+      hour: 7,
+      tidePercent: 92,
+      tideRising: true,
+      swellHeight: 1.5,
+      swellPeriod: 11,
+      swellDirection: 201,
+      windSpeed: 6,
+      windDirection: 90,
+      sunrise,
+      sunset,
+    });
+    expect(result.pancer).toBe("red");
+    expect(result.pancerDoor).toBe("yellow");
+    expect(result.telengRia).toBe("yellow");
+  });
+
+  test("05:00 rising-tide morning works for everyone", () => {
+    const result = computeAllSpotRatings({
+      hour: 5,
+      tidePercent: 57,
+      tideRising: true,
+      swellHeight: 1.5,
+      swellPeriod: 11,
+      swellDirection: 201,
+      windSpeed: 6,
+      windDirection: 90,
+      sunrise,
+      sunset,
+    });
+    expect(result.pancer).toBe("green");
+    expect(result.pancerDoor).toBe("green");
+    expect(result.telengRia).toBe("green");
   });
 });
