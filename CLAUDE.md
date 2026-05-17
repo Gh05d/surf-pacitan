@@ -7,11 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 bun test                         # run all tests
 bun test tests/surfable.test.ts  # run a single test file
+bun test tests/surfable.test.ts -t "<describe-name>"  # scope to one describe block (TDD)
 bun run dev                      # server with --watch (port 3100)
 bun run dev:client               # Vite dev server (proxies /api → :3100)
 bun run build                    # production build → /var/www/surf-pacitan/
 bun run start                    # production server
 ```
+
+Inspect live model output without Redis auth: `curl -s http://127.0.0.1:3100/api/forecast | python3 -c "import json,sys; d=json.load(sys.stdin); ..."`. Returns the same cached `ForecastDay` Redis holds.
 
 After `bun run build`, restart the service: `systemctl restart surf-pacitan.service`
 Frontend-only changes (CSS, components) don't need a service restart — nginx serves static files directly from `/var/www/surf-pacitan/`.
@@ -27,6 +30,8 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 **StormGlass quota gotcha:** When quota is exceeded, the API may return HTTP 200 with `hours: []` (empty data) instead of 402. The code detects both cases and falls back to Open-Meteo.
 
 **Surfable logic (`surfable.ts`):** Rates each hour green/yellow/red as the weakest link across five per-factor judgments: tide bell curve, swell direction window, swell height, swell period, and wind speed (categorized as offshore/cross-shore/onshore via `getWindCategory` against `facingDirection`). Each spot has its own thresholds in `config.ts`. **Tide curves are per-spot**: Pancer (river-mouth sandbar at the western end of the bay) drowns at high tide and works best at lower-mid rising; Pancer Door (middle, long open beach) tolerates higher tide; Teleng Ria (east end) handles peak high best. **Swell direction is per-spot**: Pancer is sheltered from SW by the western headland and prefers more southerly swells; Teleng Ria prefers SW. A global falling-tide cap downgrades any green result to yellow because sandbar breaks need rising water.
+
+**Spot geography (local naming, west to east):** Pancer (river mouth, west end) → Pancer Door (long middle beach) → Teleng Ria (east end). Public surf guides (surfindonesia, surfline) describe "Pancer" / "Pancer Door" as the eastern river-mouth break — that conflicts with the local convention used by this app's UI. Follow the local convention; ignore guide naming for spot identity.
 
 **Frontend:** Swipeable day views with uPlot tide chart. Canvas overlays for surfable zone bands, now marker, and H/L labels are in `TideGraph.tsx` draw hooks (Canvas API, not React styles). `ConditionsPanel.tsx` groups Swell/Wind/Weather cards into a single panel with 3h time block navigation (◀ ▶ arrows, daylight blocks only). Each component has a co-located `.css` file using CSS nesting.
 
