@@ -28,11 +28,11 @@ const FULL_MIN = 0;
 const FULL_MAX = 23 * 3600;
 const MIN_RANGE = 60 * 60; // 1h minimum visible range
 
-const STRIP_HEIGHT = 14; // px per spot strip
+const STRIP_HEIGHT = 24; // px per spot strip
 const STRIP_GAP = 2;     // px between strips
-const STRIP_BLOCK_HEIGHT = STRIP_HEIGHT * 3 + STRIP_GAP * 2; // 46px total
+const STRIP_BLOCK_HEIGHT = STRIP_HEIGHT * 3 + STRIP_GAP * 2; // 76px total
 const STRIP_TOP_DIVIDER = 1; // px top separator line
-const STRIP_RESERVED = STRIP_BLOCK_HEIGHT + STRIP_TOP_DIVIDER; // 47px reserved
+const STRIP_RESERVED = STRIP_BLOCK_HEIGHT + STRIP_TOP_DIVIDER; // 77px reserved
 const STRIP_LEFT_GUTTER = 22; // px for abbreviation labels (currently unused but reserved)
 
 function parseHHmm(hhmm: string): number {
