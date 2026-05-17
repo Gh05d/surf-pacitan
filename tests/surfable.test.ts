@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality } from "../src/server/surfable";
+import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality, computeSwellHeightQuality } from "../src/server/surfable";
 import { SPOT_THRESHOLDS } from "../src/server/config";
 
 describe("getWindCategory", () => {
@@ -223,6 +223,26 @@ describe("computeSwellDirQuality", () => {
   test("wraparound: ideal 10°, swell at 350° (Δ=20°)", () => {
     const wrap = { ideal: 10, greenWindow: 15, yellowWindow: 30 };
     expect(computeSwellDirQuality(350, wrap)).toBe("yellow");
+  });
+});
+
+describe("computeSwellHeightQuality", () => {
+  const t = { greenMin: 0.5, yellowMin: 0.3 };
+
+  test("above greenMin → green", () => {
+    expect(computeSwellHeightQuality(1.5, t)).toBe("green");
+  });
+  test("at greenMin → green", () => {
+    expect(computeSwellHeightQuality(0.5, t)).toBe("green");
+  });
+  test("between yellow and green → yellow", () => {
+    expect(computeSwellHeightQuality(0.4, t)).toBe("yellow");
+  });
+  test("at yellowMin → yellow", () => {
+    expect(computeSwellHeightQuality(0.3, t)).toBe("yellow");
+  });
+  test("below yellowMin → red", () => {
+    expect(computeSwellHeightQuality(0.1, t)).toBe("red");
   });
 });
 
