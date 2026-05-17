@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ForecastDay, HourlyData, SurfableRating, SpotName } from "../../../shared/types";
+import { SPOT_DISPLAY } from "../../shared/spots";
 import { TideGraph } from "./TideGraph";
 import { TideGraphModal } from "./TideGraphModal";
 import { ConditionsPanel } from "./ConditionsPanel";
@@ -23,11 +24,6 @@ interface SpotWindow {
   rating: "green" | "yellow";
 }
 
-const SPOT_INFO: { key: SpotName; label: string }[] = [
-  { key: "telengRia", label: "Teleng Ria" },
-  { key: "pancer", label: "Pancer" },
-  { key: "pancerDoor", label: "Pancer Door" },
-];
 
 function findWindowsForRating(hourly: HourlyData[], spotKey: SpotName, label: string, targetRating: "green" | "yellow"): SpotWindow[] {
   const windows: SpotWindow[] = [];
@@ -54,13 +50,13 @@ function findWindowsForRating(hourly: HourlyData[], spotKey: SpotName, label: st
 function findSpotWindows(hourly: HourlyData[]): { windows: SpotWindow[]; reason: string } {
   // Try green windows first
   let allWindows: SpotWindow[] = [];
-  for (const { key, label } of SPOT_INFO) {
+  for (const { key, label } of SPOT_DISPLAY) {
     allWindows.push(...findWindowsForRating(hourly, key, label, "green"));
   }
 
   // If no green, fall back to yellow
   if (allWindows.length === 0) {
-    for (const { key, label } of SPOT_INFO) {
+    for (const { key, label } of SPOT_DISPLAY) {
       allWindows.push(...findWindowsForRating(hourly, key, label, "yellow"));
     }
   }
@@ -127,12 +123,12 @@ export function DayView({ day, isToday }: DayViewProps) {
               {windows.some((w) => w.rating === "green") ? "Best windows" : "Possible windows"}
             </div>
             <div className="surf-window-spots">
-              {SPOT_INFO.map(({ key, label }) => {
+              {SPOT_DISPLAY.map(({ key, label, abbr, emoji }) => {
                 const spotWindows = windows.filter((w) => w.spotKey === key);
                 if (spotWindows.length === 0) return null;
                 return (
                   <div key={key} className="surf-window-spot-row">
-                    <span className="surf-window-spot-name">🏄 {label}</span>
+                    <span className="surf-window-spot-name">🏄 {emoji} {label} ({abbr})</span>
                     <span className="surf-window-spot-times">
                       {spotWindows.map((w, i) => (
                         <span key={i}>{i > 0 && ", "}{formatWindow(w.start, w.end)}</span>
