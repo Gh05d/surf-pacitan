@@ -62,6 +62,15 @@ export function computeSwellHeightQuality(
   return "yellow";
 }
 
+export function computeSwellPeriodQuality(
+  swellPeriod: number,
+  t: SpotThresholds["swellPeriod"]
+): Quality {
+  if (swellPeriod < t.yellowMin) return "red";
+  if (swellPeriod >= t.greenMin) return "green";
+  return "yellow";
+}
+
 export type WindCategory = "offshore" | "crossShore" | "onshore";
 
 export function getWindCategory(windDirection: number, facingDirection: number): WindCategory {

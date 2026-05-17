@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality, computeSwellHeightQuality } from "../src/server/surfable";
+import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality, computeSwellHeightQuality, computeSwellPeriodQuality } from "../src/server/surfable";
 import { SPOT_THRESHOLDS } from "../src/server/config";
 
 describe("getWindCategory", () => {
@@ -243,6 +243,26 @@ describe("computeSwellHeightQuality", () => {
   });
   test("below yellowMin → red", () => {
     expect(computeSwellHeightQuality(0.1, t)).toBe("red");
+  });
+});
+
+describe("computeSwellPeriodQuality", () => {
+  const t = { greenMin: 8, yellowMin: 6 };
+
+  test("groundswell 11s → green", () => {
+    expect(computeSwellPeriodQuality(11, t)).toBe("green");
+  });
+  test("at greenMin → green", () => {
+    expect(computeSwellPeriodQuality(8, t)).toBe("green");
+  });
+  test("mid swell 7s → yellow", () => {
+    expect(computeSwellPeriodQuality(7, t)).toBe("yellow");
+  });
+  test("at yellowMin → yellow", () => {
+    expect(computeSwellPeriodQuality(6, t)).toBe("yellow");
+  });
+  test("windswell 5s → red", () => {
+    expect(computeSwellPeriodQuality(5, t)).toBe("red");
   });
 });
 
