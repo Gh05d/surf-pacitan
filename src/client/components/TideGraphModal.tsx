@@ -92,7 +92,6 @@ export function TideGraphModal({
             isToday={isToday}
             enableZoom
             heightOverride={chartHeight}
-            hideSpotBands
           />
         </div>
 

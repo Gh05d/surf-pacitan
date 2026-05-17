@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import "./TideGraph.css";
-import type { HourlyData, TideExtreme, AstronomyData, SurfableRating, SpotName } from "../../../shared/types";
+import type { HourlyData, TideExtreme, AstronomyData, SurfableRating } from "../../../shared/types";
 
 interface TideGraphProps {
   hourly: HourlyData[];
@@ -13,8 +13,6 @@ interface TideGraphProps {
   enableZoom?: boolean;
   /** Override automatic height calculation (px). */
   heightOverride?: number;
-  /** Hide the bottom spot bands strip. */
-  hideSpotBands?: boolean;
   /** When set, clicking the chart calls this (used for "tap to expand"). */
   onExpand?: () => void;
 }
@@ -24,12 +22,6 @@ const RATING_COLORS: Record<SurfableRating, string> = {
   yellow: "rgba(240, 168, 48, 0.18)",
   red: "rgba(224, 96, 80, 0.15)",
 };
-
-const SPOT_LABELS: { key: SpotName; label: string }[] = [
-  { key: "telengRia", label: "Teleng Ria" },
-  { key: "pancer", label: "Pancer" },
-  { key: "pancerDoor", label: "Pancer Door" },
-];
 
 const FULL_MIN = 0;
 const FULL_MAX = 23 * 3600;
@@ -54,7 +46,6 @@ export function TideGraph({
   isToday,
   enableZoom = false,
   heightOverride,
-  hideSpotBands = false,
   onExpand,
 }: TideGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,8 +68,6 @@ export function TideGraph({
 
     const times = new Float64Array(hourly.map((h) => h.hour * 3600));
     const heights = new Float64Array(hourly.map((h) => h.tide.height));
-
-    const ratingByHour = new Map<number, SurfableRating>(hourly.map((h) => [h.hour, h.surfable.pancerDoor]));
 
     const sunriseHour = parseHHmm(astronomy.sunrise);
     const sunsetHour = parseHHmm(astronomy.sunset);
@@ -156,20 +145,6 @@ export function TideGraph({
           (u) => {
             const ctx = u.ctx;
             ctx.save();
-
-            // --- Background surfable zone bands ---
-            for (let hour = 0; hour < 24; hour++) {
-              const rating = ratingByHour.get(hour);
-              if (!rating) continue;
-
-              const xStart = u.valToPos(hour * 3600, "x", true);
-              const xEnd = u.valToPos((hour + 1) * 3600, "x", true);
-              const yTop = u.bbox.top;
-              const yBot = u.bbox.top + u.bbox.height;
-
-              ctx.fillStyle = RATING_COLORS[rating];
-              ctx.fillRect(xStart, yTop, xEnd - xStart, yBot - yTop);
-            }
 
             // --- Night overlay ---
             const nightColor = "rgba(4, 10, 20, 0.45)";
@@ -437,23 +412,6 @@ export function TideGraph({
         role={onExpand ? "button" : undefined}
         tabIndex={onExpand ? 0 : undefined}
       />
-      {!hideSpotBands && (
-        <div className="spot-bands">
-          {SPOT_LABELS.map(({ key, label }) => (
-            <div key={key} className="spot-band-row">
-              <span className="spot-band-label">{label}</span>
-              <div className="spot-band-bar">
-                {hourly.map((h) => (
-                  <div
-                    key={h.hour}
-                    className={`spot-band-seg ${h.surfable[key] !== "red" ? h.surfable[key] : ""}`}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
