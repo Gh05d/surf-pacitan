@@ -34,6 +34,15 @@ export function angularDistance(a: number, b: number): number {
   return raw > 180 ? 360 - raw : raw;
 }
 
+export function computeTideQuality(
+  tidePercent: number,
+  t: SpotThresholds["tide"]
+): Quality {
+  if (tidePercent < t.yellowMin || tidePercent > t.yellowMax) return "red";
+  if (tidePercent >= t.greenMin && tidePercent <= t.greenMax) return "green";
+  return "yellow";
+}
+
 export type WindCategory = "offshore" | "crossShore" | "onshore";
 
 export function getWindCategory(windDirection: number, facingDirection: number): WindCategory {

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality } from "../src/server/surfable";
+import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality } from "../src/server/surfable";
 import { SPOT_THRESHOLDS } from "../src/server/config";
 
 describe("getWindCategory", () => {
@@ -170,6 +170,32 @@ describe("computeAllSpotRatings", () => {
     expect(result.telengRia).toBe("green");
     expect(result.pancer).toBe("yellow");
     expect(result.pancerDoor).toBe("yellow");
+  });
+});
+
+describe("computeTideQuality", () => {
+  const t = { greenMin: 30, greenMax: 60, yellowMin: 15, yellowMax: 80 };
+
+  test("inside green window", () => {
+    expect(computeTideQuality(45, t)).toBe("green");
+  });
+  test("at green lower edge", () => {
+    expect(computeTideQuality(30, t)).toBe("green");
+  });
+  test("at green upper edge", () => {
+    expect(computeTideQuality(60, t)).toBe("green");
+  });
+  test("between green and yellow upper", () => {
+    expect(computeTideQuality(70, t)).toBe("yellow");
+  });
+  test("between yellow lower and green lower", () => {
+    expect(computeTideQuality(20, t)).toBe("yellow");
+  });
+  test("above yellowMax → red", () => {
+    expect(computeTideQuality(85, t)).toBe("red");
+  });
+  test("below yellowMin → red", () => {
+    expect(computeTideQuality(10, t)).toBe("red");
   });
 });
 
