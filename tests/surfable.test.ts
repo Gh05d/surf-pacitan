@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { computeSurfable, computeAllSpotRatings, getWindCategory } from "../src/server/surfable";
+import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality } from "../src/server/surfable";
 import { SPOT_THRESHOLDS } from "../src/server/config";
 
 describe("getWindCategory", () => {
@@ -48,6 +48,43 @@ describe("getWindCategory", () => {
 
   test("Pancer faces 200° SSW — wind from 20° (NNE) is offshore", () => {
     expect(getWindCategory(20, 200)).toBe("offshore");
+  });
+});
+
+describe("angularDistance", () => {
+  test("same direction", () => {
+    expect(angularDistance(180, 180)).toBe(0);
+  });
+  test("small positive delta", () => {
+    expect(angularDistance(200, 195)).toBe(5);
+  });
+  test("small negative delta", () => {
+    expect(angularDistance(195, 200)).toBe(5);
+  });
+  test("wraparound at 0/360", () => {
+    expect(angularDistance(350, 10)).toBe(20);
+    expect(angularDistance(10, 350)).toBe(20);
+  });
+  test("opposite directions", () => {
+    expect(angularDistance(0, 180)).toBe(180);
+  });
+  test("values > 360 (defensive)", () => {
+    expect(angularDistance(370, 10)).toBe(0);
+  });
+});
+
+describe("minQuality", () => {
+  test("all green → green", () => {
+    expect(minQuality(["green", "green", "green"])).toBe("green");
+  });
+  test("one yellow → yellow", () => {
+    expect(minQuality(["green", "yellow", "green"])).toBe("yellow");
+  });
+  test("one red → red", () => {
+    expect(minQuality(["green", "yellow", "red"])).toBe("red");
+  });
+  test("single value", () => {
+    expect(minQuality(["yellow"])).toBe("yellow");
   });
 });
 

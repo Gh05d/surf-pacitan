@@ -21,6 +21,19 @@ function isWithinDaylight(hour: number, sunrise: string, sunset: string): boolea
   return hour >= sunriseHour && hour < sunsetHour;
 }
 
+export type Quality = "red" | "yellow" | "green";
+
+const QUALITY_ORDER: Record<Quality, number> = { red: 0, yellow: 1, green: 2 };
+
+export function minQuality(qs: Quality[]): Quality {
+  return qs.reduce((a, b) => (QUALITY_ORDER[a] < QUALITY_ORDER[b] ? a : b));
+}
+
+export function angularDistance(a: number, b: number): number {
+  const raw = Math.abs(a - b) % 360;
+  return raw > 180 ? 360 - raw : raw;
+}
+
 export type WindCategory = "offshore" | "crossShore" | "onshore";
 
 export function getWindCategory(windDirection: number, facingDirection: number): WindCategory {
