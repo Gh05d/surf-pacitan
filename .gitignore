@@ -4,3 +4,6 @@ dist/
 
 # codegraph index (per-machine, regenerable)
 .codegraph/
+
+# superpowers brainstorm mockups
+.superpowers/
