@@ -82,6 +82,18 @@ export function getWindCategory(windDirection: number, facingDirection: number):
   return "crossShore";
 }
 
+export function computeWindQuality(
+  windSpeed: number,
+  windDirection: number,
+  thresholds: SpotThresholds
+): Quality {
+  const category = getWindCategory(windDirection, thresholds.facingDirection);
+  const w = thresholds.wind[category];
+  if (windSpeed > w.yellowMax) return "red";
+  if (windSpeed <= w.greenMax) return "green";
+  return "yellow";
+}
+
 export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds = SURFABLE): SurfableRating {
   const { hour, tidePercent, tideRising, swellHeight, windSpeed, windDirection, sunrise, sunset } = input;
 

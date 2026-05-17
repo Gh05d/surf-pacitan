@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality, computeSwellHeightQuality, computeSwellPeriodQuality } from "../src/server/surfable";
+import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality, computeSwellHeightQuality, computeSwellPeriodQuality, computeWindQuality } from "../src/server/surfable";
 import { SPOT_THRESHOLDS } from "../src/server/config";
 
 describe("getWindCategory", () => {
@@ -304,5 +304,37 @@ describe("wind direction affects rating", () => {
     expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 200 }, SPOT_THRESHOLDS.pancer)).toBe("yellow");
     // Same speed offshore (20°): Pancer offshore greenMax=30 → green
     expect(computeSurfable({ ...base, windSpeed: 15, windDirection: 20 }, SPOT_THRESHOLDS.pancer)).toBe("green");
+  });
+});
+
+describe("computeWindQuality", () => {
+  // Facing 195°. Use Pancer Door's wind block.
+  const t = {
+    facingDirection: 195,
+    wind: {
+      offshore:   { greenMax: 30, yellowMax: 45 },
+      crossShore: { greenMax: 20, yellowMax: 30 },
+      onshore:    { greenMax: 10, yellowMax: 20 },
+    },
+  };
+
+  test("light onshore (wind from 195°, 6 km/h) → green", () => {
+    expect(computeWindQuality(6, 195, t as any)).toBe("green");
+  });
+  test("medium onshore (15 km/h) → yellow", () => {
+    expect(computeWindQuality(15, 195, t as any)).toBe("yellow");
+  });
+  test("strong onshore (25 km/h) → red", () => {
+    expect(computeWindQuality(25, 195, t as any)).toBe("red");
+  });
+  test("light offshore (wind from 15° ≈ N, 6 km/h) → green", () => {
+    expect(computeWindQuality(6, 15, t as any)).toBe("green");
+  });
+  test("very strong offshore (50 km/h) → red", () => {
+    expect(computeWindQuality(50, 15, t as any)).toBe("red");
+  });
+  test("cross-shore at greenMax boundary", () => {
+    // East wind 90° from 195° facing: angleDiff = 105 → crossShore. 20 km/h ≤ 20 greenMax → green.
+    expect(computeWindQuality(20, 90, t as any)).toBe("green");
   });
 });
