@@ -64,9 +64,17 @@
     padding-top: 0.75rem;
   }
 
-  & .recommendation-card-reasoning {
+  & .recommendation-card-headline {
     color: var(--text);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0 0 0.5rem 0;
+  }
+
+  & .recommendation-card-reasoning {
+    color: var(--text-dim);
+    font-size: 0.875rem;
     line-height: 1.45;
     margin: 0 0 0.5rem 0;
   }
