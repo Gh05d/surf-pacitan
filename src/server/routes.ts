@@ -5,10 +5,20 @@ import {
   getLastFetch,
   getCachedDateList,
   getQuotaRemaining,
+  getRecommendation,
 } from "./cache";
 import { fetchAndCacheTides, fetchAndCacheWeather } from "./cron";
-import type { ForecastResponse, StatusResponse } from "../shared/types";
-import { FORECAST_DAYS } from "./config";
+import type { ForecastResponse, StatusResponse, RecommendationResponse } from "../shared/types";
+import { FORECAST_DAYS, RECOMMENDATION_ENABLED } from "./config";
+
+function todayWIB(): string {
+  const now = new Date();
+  const localNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  const y = localNow.getUTCFullYear();
+  const mo = String(localNow.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(localNow.getUTCDate()).padStart(2, "0");
+  return `${y}-${mo}-${d}`;
+}
 
 const api = new Hono();
 
@@ -63,6 +73,17 @@ api.get("/status", async (c) => {
   };
 
   return c.json(response);
+});
+
+// GET /api/recommendation — daily AI surf recommendation, may be null
+api.get("/recommendation", async (c) => {
+  if (!RECOMMENDATION_ENABLED) {
+    const body: RecommendationResponse = { enabled: false, recommendation: null };
+    return c.json(body);
+  }
+  const rec = await getRecommendation(todayWIB());
+  const body: RecommendationResponse = { enabled: true, recommendation: rec };
+  return c.json(body);
 });
 
 // POST /api/refresh — triggers a manual re-fetch
