@@ -67,8 +67,8 @@ export interface StatusResponse {
 }
 
 export interface RecommendationWindow {
-  start: string; // "HH:MM" local time (Asia/Jakarta)
-  end: string;   // "HH:MM"
+  start: string; // "HH:mm" local time (Asia/Jakarta)
+  end: string;   // "HH:mm"
 }
 
 export interface Recommendation {
