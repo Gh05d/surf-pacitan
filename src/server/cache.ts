@@ -1,6 +1,6 @@
 import Redis from "ioredis";
-import type { ForecastDay } from "../shared/types";
-import { REDIS_KEY_PREFIX, REDIS_META_KEY, REDIS_QUOTA_KEY, CACHE_TTL_SECONDS } from "./config";
+import type { ForecastDay, Recommendation } from "../shared/types";
+import { REDIS_KEY_PREFIX, REDIS_META_KEY, REDIS_QUOTA_KEY, CACHE_TTL_SECONDS, REDIS_RECOMMENDATION_KEY_PREFIX, RECOMMENDATION_TTL_SECONDS } from "./config";
 
 const redis = new Redis({
   host: process.env.REDIS_HOST || "127.0.0.1",
@@ -46,6 +46,17 @@ export async function getQuotaRemaining(): Promise<number | null> {
 export async function getCachedDateList(): Promise<string[]> {
   const keys = await redis.keys(`${REDIS_KEY_PREFIX}*`);
   return keys.map((k) => k.replace(REDIS_KEY_PREFIX, "")).sort();
+}
+
+export async function getRecommendation(date: string): Promise<Recommendation | null> {
+  const raw = await redis.get(`${REDIS_RECOMMENDATION_KEY_PREFIX}${date}`);
+  if (!raw) return null;
+  return JSON.parse(raw);
+}
+
+export async function setRecommendation(rec: Recommendation): Promise<void> {
+  const key = `${REDIS_RECOMMENDATION_KEY_PREFIX}${rec.forDate}`;
+  await redis.set(key, JSON.stringify(rec), "EX", RECOMMENDATION_TTL_SECONDS);
 }
 
 export { redis };
