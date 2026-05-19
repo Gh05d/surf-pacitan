@@ -109,3 +109,113 @@ export function buildUserPayload(forecast: ForecastDay): UserPayload {
     })),
   };
 }
+
+import { getCachedDay as defaultGetCachedDay, setRecommendation as defaultSetRecommendation } from "./cache";
+import { callDeepSeek as defaultCallDeepSeek, type DeepSeekResult } from "./deepseek";
+import { PACITAN_SURF_KNOWLEDGE } from "./knowledge-base";
+import {
+  DEEPSEEK_API_KEY,
+  DEEPSEEK_MODEL,
+  DEEPSEEK_THINKING,
+  DEEPSEEK_TIMEOUT_MS,
+} from "./config";
+import type { Recommendation } from "../shared/types";
+
+export interface GenerateDeps {
+  getCachedDay: typeof defaultGetCachedDay;
+  setRecommendation: typeof defaultSetRecommendation;
+  callDeepSeek: (opts: {
+    apiKey: string;
+    model: string;
+    systemPrompt: string;
+    userPayload: unknown;
+    thinking: boolean;
+    timeoutMs: number;
+  }) => Promise<DeepSeekResult>;
+  now: () => Date;
+  apiKey: string;
+  model: string;
+  thinking: boolean;
+  timeoutMs: number;
+}
+
+const DEFAULT_DEPS: GenerateDeps = {
+  getCachedDay: defaultGetCachedDay,
+  setRecommendation: defaultSetRecommendation,
+  callDeepSeek: defaultCallDeepSeek,
+  now: () => new Date(),
+  apiKey: DEEPSEEK_API_KEY,
+  model: DEEPSEEK_MODEL,
+  thinking: DEEPSEEK_THINKING,
+  timeoutMs: DEEPSEEK_TIMEOUT_MS,
+};
+
+function tomorrowDateWIB(now: Date): string {
+  // WIB = UTC+7. "Tomorrow" = today-WIB + 1 day.
+  const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  const tomorrow = new Date(wibNow.getTime() + 24 * 60 * 60 * 1000);
+  const y = tomorrow.getUTCFullYear();
+  const mo = String(tomorrow.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(tomorrow.getUTCDate()).padStart(2, "0");
+  return `${y}-${mo}-${d}`;
+}
+
+export async function generateTomorrowRecommendation(deps: GenerateDeps = DEFAULT_DEPS): Promise<void> {
+  if (!deps.apiKey) {
+    console.warn("[recommendation] DEEPSEEK_API_KEY missing; skipping");
+    return;
+  }
+
+  const forDate = tomorrowDateWIB(deps.now());
+  const forecast = await deps.getCachedDay(forDate);
+  if (!forecast) {
+    console.warn(`[recommendation] no cached forecast for ${forDate}; skipping`);
+    return;
+  }
+
+  const userPayload = buildUserPayload(forecast);
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    let result: DeepSeekResult;
+    try {
+      result = await deps.callDeepSeek({
+        apiKey: deps.apiKey,
+        model: deps.model,
+        systemPrompt: PACITAN_SURF_KNOWLEDGE,
+        userPayload,
+        thinking: deps.thinking,
+        timeoutMs: deps.timeoutMs,
+      });
+    } catch (err) {
+      console.error(`[recommendation] attempt ${attempt} DeepSeek call failed:`, err);
+      return; // do not retry on HTTP/parse error; preserves existing cached rec
+    }
+
+    const validation = validateRecommendation(result.content);
+    if (!validation.ok) {
+      console.warn(`[recommendation] attempt ${attempt} validation failed: ${validation.error}`);
+      if (attempt === 2) {
+        console.error("[recommendation] giving up after 2 failed validations");
+        return;
+      }
+      continue;
+    }
+
+    const rec: Recommendation = {
+      forDate,
+      generatedAt: deps.now().toISOString(),
+      bestSpot: validation.value.bestSpot,
+      bestWindow: validation.value.bestWindow,
+      headline: validation.value.headline,
+      reasoning: validation.value.reasoning,
+      warnings: validation.value.warnings,
+      modelUsed: deps.model,
+    };
+
+    await deps.setRecommendation(rec);
+    console.log(
+      `[recommendation] wrote rec for ${forDate} (tokens used: ${result.usage.total_tokens})`,
+    );
+    return;
+  }
+}

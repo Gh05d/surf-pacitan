@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import { buildUserPayload } from "../src/server/recommendation";
 import type { ForecastDay } from "../src/shared/types";
 
@@ -129,5 +129,112 @@ describe("validateRecommendation", () => {
     delete r.headline;
     const result = validateRecommendation(r);
     expect(result.ok).toBe(false);
+  });
+});
+
+import { generateTomorrowRecommendation, type GenerateDeps } from "../src/server/recommendation";
+import type { Recommendation } from "../src/shared/types";
+
+function frozenNow(): Date {
+  // 2026-05-19 20:00 WIB = 13:00 UTC
+  return new Date("2026-05-19T13:00:00Z");
+}
+
+function validModelResponse() {
+  return {
+    bestSpot: "pancerDoor",
+    bestWindow: { start: "06:00", end: "09:00" },
+    headline: "Pancer Door am besten morgens.",
+    reasoning: "Steigende Tide trifft Offshore-Wind und sauberen SW-Swell.",
+    warnings: [],
+  };
+}
+
+function makeDeps(overrides: Partial<GenerateDeps> = {}): GenerateDeps {
+  return {
+    getCachedDay: mock(async () => sampleForecast({ date: "2026-05-20" })),
+    setRecommendation: mock(async () => {}),
+    callDeepSeek: mock(async () => ({
+      content: validModelResponse(),
+      usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+    })),
+    now: () => frozenNow(),
+    apiKey: "sk-test",
+    model: "deepseek-v4-flash",
+    thinking: true,
+    timeoutMs: 5000,
+    ...overrides,
+  };
+}
+
+describe("generateTomorrowRecommendation", () => {
+  test("computes tomorrow as today (WIB) + 1 and looks up that forecast", async () => {
+    const getCachedDay = mock(async () => sampleForecast({ date: "2026-05-20" }));
+    await generateTomorrowRecommendation(makeDeps({ getCachedDay }));
+    expect(getCachedDay).toHaveBeenCalledTimes(1);
+    expect((getCachedDay as any).mock.calls[0][0]).toBe("2026-05-20");
+  });
+
+  test("skips when forecast for tomorrow is missing", async () => {
+    const getCachedDay = mock(async () => null);
+    const setRecommendation = mock(async () => {});
+    const callDeepSeek = mock(async () => ({ content: {}, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }));
+    await generateTomorrowRecommendation(makeDeps({ getCachedDay, setRecommendation, callDeepSeek }));
+    expect(callDeepSeek).not.toHaveBeenCalled();
+    expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("on success writes a complete Recommendation to cache", async () => {
+    const captured: Recommendation[] = [];
+    const setRecommendation = mock(async (rec: Recommendation) => { captured.push(rec); });
+    await generateTomorrowRecommendation(makeDeps({ setRecommendation }));
+    expect(captured).toHaveLength(1);
+    const rec = captured[0];
+    expect(rec.forDate).toBe("2026-05-20");
+    expect(rec.bestSpot).toBe("pancerDoor");
+    expect(rec.bestWindow).toEqual({ start: "06:00", end: "09:00" });
+    expect(rec.modelUsed).toBe("deepseek-v4-flash");
+    expect(rec.generatedAt).toBe(frozenNow().toISOString());
+  });
+
+  test("does NOT overwrite cache when DeepSeek throws", async () => {
+    const setRecommendation = mock(async () => {});
+    const callDeepSeek = mock(async () => { throw new Error("boom"); });
+    await generateTomorrowRecommendation(makeDeps({ setRecommendation, callDeepSeek }));
+    expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("retries once when validation fails on first response, succeeds second", async () => {
+    let nthCall = 0;
+    const callDeepSeek = mock(async () => {
+      nthCall += 1;
+      if (nthCall === 1) {
+        return { content: { bestSpot: "notARealSpot" }, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } };
+      }
+      return { content: validModelResponse(), usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 } };
+    });
+    const setRecommendation = mock(async () => {});
+    await generateTomorrowRecommendation(makeDeps({ callDeepSeek, setRecommendation }));
+    expect(callDeepSeek).toHaveBeenCalledTimes(2);
+    expect(setRecommendation).toHaveBeenCalledTimes(1);
+  });
+
+  test("does NOT overwrite cache when both attempts fail validation", async () => {
+    const callDeepSeek = mock(async () => ({
+      content: { bestSpot: "notARealSpot" },
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    }));
+    const setRecommendation = mock(async () => {});
+    await generateTomorrowRecommendation(makeDeps({ callDeepSeek, setRecommendation }));
+    expect(callDeepSeek).toHaveBeenCalledTimes(2);
+    expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("skips when apiKey is empty (defensive)", async () => {
+    const callDeepSeek = mock(async () => ({ content: {}, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }));
+    const setRecommendation = mock(async () => {});
+    await generateTomorrowRecommendation(makeDeps({ apiKey: "", callDeepSeek, setRecommendation }));
+    expect(callDeepSeek).not.toHaveBeenCalled();
+    expect(setRecommendation).not.toHaveBeenCalled();
   });
 });
