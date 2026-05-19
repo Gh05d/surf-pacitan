@@ -3,6 +3,8 @@ import { useForecast } from "./hooks/useForecast";
 import { Header } from "./components/Header";
 import { DayView } from "./components/DayView";
 import { SpotMap } from "./components/SpotMap";
+import { RecommendationCard } from "./components/RecommendationCard";
+import { useRecommendation } from "./hooks/useRecommendation";
 import "./App.css";
 
 function formatDayLabel(dateStr: string, index: number): string {
@@ -15,6 +17,7 @@ function formatDayLabel(dateStr: string, index: number): string {
 
 export function App() {
   const { days, lastFetch, loading, error, refresh } = useForecast();
+  const { enabled: recEnabled, recommendation } = useRecommendation();
   const [dayIndex, setDayIndex] = useState(0);
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const [animating, setAnimating] = useState(false);
@@ -101,6 +104,10 @@ export function App() {
       onTouchEnd={handleTouchEnd}
     >
       <Header lastFetch={lastFetch} onRefresh={refresh} />
+
+      {recEnabled && recommendation && (
+        <RecommendationCard recommendation={recommendation} />
+      )}
 
       {/* Day label + navigation */}
       <div className="day-nav">
