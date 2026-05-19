@@ -10,7 +10,13 @@ import {
 import { fetchOpenMeteoWeather, parseOpenMeteoWeather, fetchOpenMeteoMarine, parseOpenMeteoMarine } from "./open-meteo";
 import { setCachedDay, setLastFetch, setQuotaRemaining, getCachedDay } from "./cache";
 import { computeAllSpotRatings, computeTidePercent } from "./surfable";
-import { LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS } from "./config";
+import { generateTomorrowRecommendation } from "./recommendation";
+import { nextFireMs } from "./schedule";
+import {
+  LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS,
+  RECOMMENDATION_ENABLED, DEEPSEEK_API_KEY,
+  RECOMMENDATION_CRON_UTC_HOUR, RECOMMENDATION_CRON_UTC_MINUTE,
+} from "./config";
 import type { ForecastDay, HourlyData, SwellData, WindData, WeatherData } from "../shared/types";
 
 // ---------------------------------------------------------------------------
@@ -251,9 +257,30 @@ export function startScheduler(): void {
   // Tides once daily at midnight local (UTC+7 = 17:00 UTC)
   scheduleMidnightTideFetch();
 
+  // Daily recommendation generation (20:00 WIB = 13:00 UTC), only if enabled
+  if (RECOMMENDATION_ENABLED && DEEPSEEK_API_KEY) {
+    scheduleDailyRecommendation();
+    console.log("[cron] recommendation cron registered (20:00 WIB)");
+  } else {
+    console.log("[cron] recommendation cron NOT registered (RECOMMENDATION_ENABLED=false or no API key)");
+  }
+
   console.log(
     `[cron] startScheduler: weather every ${WEATHER_FETCH_INTERVAL_MS / 3600000}h, tides daily at midnight WIB`
   );
+}
+
+function scheduleDailyRecommendation(): void {
+  const ms = nextFireMs(new Date(), RECOMMENDATION_CRON_UTC_HOUR, RECOMMENDATION_CRON_UTC_MINUTE);
+  console.log(
+    `[cron] next recommendation generation in ${Math.round(ms / 60000)} minutes`,
+  );
+  setTimeout(() => {
+    generateTomorrowRecommendation().catch((err) =>
+      console.error("[cron] generateTomorrowRecommendation error:", err),
+    );
+    scheduleDailyRecommendation();
+  }, ms);
 }
 
 function scheduleMidnightTideFetch(): void {
