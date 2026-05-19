@@ -37,12 +37,18 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 **Frontend:** Swipeable day views with uPlot tide chart. Canvas overlays in `TideGraph.tsx` draw hooks (Canvas API, not React styles): night overlay, now marker, H/L tide-extreme labels, and three per-spot rating strips (P/PD/TR) at the bottom of the plot area. `ConditionsPanel.tsx` groups Swell/Wind/Weather cards into a single panel with 3h time block navigation (◀ ▶ arrows, daylight blocks only). Each component has a co-located `.css` file using CSS nesting.
 
+**Daily AI recommendation:** Once daily at 20:00 WIB (`cron.ts` → `recommendation.ts`), the cached `ForecastDay` for *tomorrow* is fed to DeepSeek V4 Flash along with `src/server/knowledge-base.ts` (a Pacitan-specific system prompt). The model returns a structured JSON recommendation that's cached at `surf:recommendation:YYYY-MM-DD` (TTL 36h) and served via `/api/recommendation` to the `RecommendationCard` component at the top of the app. Validated for shape and bounds; failed validation retries once. Gated by `RECOMMENDATION_ENABLED` + `DEEPSEEK_API_KEY` — feature is fully no-op if either is missing.
+
 ## Environment Variables
 
 - `STORMGLASS_API_KEY` — required (StormGlass API)
 - `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` — Redis connection (defaults: 127.0.0.1:6379)
 - `PORT` — server port (default 3100)
 - `NODE_ENV` — set to `production` for static file serving from `/var/www/surf-pacitan/`
+- `DEEPSEEK_API_KEY` — DeepSeek API key (enables the daily AI recommendation card)
+- `DEEPSEEK_MODEL` — defaults to `deepseek-v4-flash`. Set to e.g. `deepseek-v4-pro` to use a stronger model.
+- `DEEPSEEK_THINKING` — `"false"` to disable thinking mode. Default: enabled.
+- `RECOMMENDATION_ENABLED` — `"false"` to disable the daily recommendation cron without removing the API key (e.g. when away from Pacitan). Default: enabled when `DEEPSEEK_API_KEY` is set.
 
 ## Key Conventions
 
