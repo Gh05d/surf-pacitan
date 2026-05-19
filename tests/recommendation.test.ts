@@ -62,3 +62,72 @@ describe("buildUserPayload", () => {
     expect(payload.tideExtremes).toEqual(fc.tideExtremes);
   });
 });
+
+import { validateRecommendation } from "../src/server/recommendation";
+
+function validRecRaw() {
+  return {
+    bestSpot: "pancerDoor",
+    bestWindow: { start: "06:00", end: "09:00" },
+    headline: "Pancer Door am besten morgens 06:00–09:00.",
+    reasoning: "SW-Swell 1.8m@12s trifft auf steigende Tide. Wind dreht um 10:00 onshore — früh los.",
+    warnings: ["Tide-Range nur 1.3m (Nipptide)"],
+  };
+}
+
+describe("validateRecommendation", () => {
+  test("accepts a valid recommendation", () => {
+    const result = validateRecommendation(validRecRaw());
+    expect(result.ok).toBe(true);
+  });
+
+  test("rejects invalid spot name", () => {
+    const result = validateRecommendation({ ...validRecRaw(), bestSpot: "unknownBeach" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/bestSpot/);
+  });
+
+  test("rejects window with end before start", () => {
+    const result = validateRecommendation({ ...validRecRaw(), bestWindow: { start: "09:00", end: "06:00" } });
+    expect(result.ok).toBe(false);
+  });
+
+  test("rejects window with non-HH:MM string", () => {
+    const result = validateRecommendation({ ...validRecRaw(), bestWindow: { start: "morning", end: "09:00" } });
+    expect(result.ok).toBe(false);
+  });
+
+  test("rejects window with hour > 23", () => {
+    const result = validateRecommendation({ ...validRecRaw(), bestWindow: { start: "06:00", end: "25:00" } });
+    expect(result.ok).toBe(false);
+  });
+
+  test("rejects empty reasoning", () => {
+    const result = validateRecommendation({ ...validRecRaw(), reasoning: "" });
+    expect(result.ok).toBe(false);
+  });
+
+  test("rejects reasoning longer than 600 chars", () => {
+    const long = "x".repeat(601);
+    const result = validateRecommendation({ ...validRecRaw(), reasoning: long });
+    expect(result.ok).toBe(false);
+  });
+
+  test("rejects warning string longer than 200 chars", () => {
+    const long = "y".repeat(201);
+    const result = validateRecommendation({ ...validRecRaw(), warnings: [long] });
+    expect(result.ok).toBe(false);
+  });
+
+  test("accepts empty warnings array", () => {
+    const result = validateRecommendation({ ...validRecRaw(), warnings: [] });
+    expect(result.ok).toBe(true);
+  });
+
+  test("rejects missing required field", () => {
+    const r: any = validRecRaw();
+    delete r.headline;
+    const result = validateRecommendation(r);
+    expect(result.ok).toBe(false);
+  });
+});
