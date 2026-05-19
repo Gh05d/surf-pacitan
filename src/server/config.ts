@@ -117,3 +117,23 @@ export const CACHE_TTL_SECONDS = 4 * 24 * 60 * 60; // 4 days
 // Server
 export const DEFAULT_PORT = 3100;
 export const FORECAST_DAYS = 3;
+
+// DeepSeek / AI recommendation
+export const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+export const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY ?? "";
+export const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash";
+export const DEEPSEEK_THINKING = process.env.DEEPSEEK_THINKING !== "false";
+export const DEEPSEEK_TIMEOUT_MS = 15_000;
+
+// Enabled default: true when API key is set, unless explicitly RECOMMENDATION_ENABLED=false
+export const RECOMMENDATION_ENABLED =
+  process.env.RECOMMENDATION_ENABLED === "true" ||
+  (process.env.RECOMMENDATION_ENABLED !== "false" && DEEPSEEK_API_KEY !== "");
+
+// Recommendation cron fires at 20:00 Asia/Jakarta (WIB = UTC+7) → 13:00 UTC
+export const RECOMMENDATION_CRON_UTC_HOUR = 13;
+export const RECOMMENDATION_CRON_UTC_MINUTE = 0;
+
+// Recommendation Redis storage
+export const REDIS_RECOMMENDATION_KEY_PREFIX = "surf:recommendation:";
+export const RECOMMENDATION_TTL_SECONDS = 36 * 60 * 60; // 36h
