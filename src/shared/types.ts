@@ -65,3 +65,24 @@ export interface StatusResponse {
   cachedDays: string[];
   stormglassQuota: number | null;
 }
+
+export interface RecommendationWindow {
+  start: string; // "HH:MM" local time (Asia/Jakarta)
+  end: string;   // "HH:MM"
+}
+
+export interface Recommendation {
+  forDate: string;                  // YYYY-MM-DD — the day the recommendation is FOR
+  generatedAt: string;              // ISO timestamp of generation
+  bestSpot: SpotName;
+  bestWindow: RecommendationWindow;
+  headline: string;                 // 1 sentence summary, German
+  reasoning: string;                // 2-3 sentences, German, <= 600 chars
+  warnings: string[];               // empty array or short warning strings
+  modelUsed: string;                // e.g. "deepseek-v4-flash"
+}
+
+export interface RecommendationResponse {
+  enabled: boolean;
+  recommendation: Recommendation | null;
+}
