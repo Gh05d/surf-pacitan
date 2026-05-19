@@ -20,6 +20,15 @@ function todayWIB(): string {
   return `${y}-${mo}-${d}`;
 }
 
+function tomorrowWIB(): string {
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + (7 + 24) * 60 * 60 * 1000);
+  const y = tomorrow.getUTCFullYear();
+  const mo = String(tomorrow.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(tomorrow.getUTCDate()).padStart(2, "0");
+  return `${y}-${mo}-${d}`;
+}
+
 const api = new Hono();
 
 // GET /api/forecast — returns next N days from cache
@@ -76,12 +85,13 @@ api.get("/status", async (c) => {
 });
 
 // GET /api/recommendation — daily AI surf recommendation, may be null
+// Prefer tomorrow's rec (generated ~20:00 WIB), fall back to today's after midnight.
 api.get("/recommendation", async (c) => {
   if (!RECOMMENDATION_ENABLED) {
     const body: RecommendationResponse = { enabled: false, recommendation: null };
     return c.json(body);
   }
-  const rec = await getRecommendation(todayWIB());
+  const rec = (await getRecommendation(tomorrowWIB())) ?? (await getRecommendation(todayWIB()));
   const body: RecommendationResponse = { enabled: true, recommendation: rec };
   return c.json(body);
 });
