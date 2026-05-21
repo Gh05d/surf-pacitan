@@ -16,6 +16,8 @@ bun run start                    # production server
 
 Inspect live model output without Redis auth: `curl -s http://127.0.0.1:3100/api/forecast | python3 -c "import json,sys; d=json.load(sys.stdin); ..."`. Returns the same cached `ForecastDay` Redis holds.
 
+Manually trigger a recommendation generation (skip waiting for 20:00 WIB cron): from `/root/surf-pacitan/`, run `bun -e 'import("./src/server/recommendation.ts").then(m => m.generateTomorrowRecommendation())'` — uses `.env` via Bun's auto-load, writes to Redis on success.
+
 After `bun run build`, restart the service: `systemctl restart surf-pacitan.service`
 Frontend-only changes (CSS, components) don't need a service restart — nginx serves static files directly from `/var/www/surf-pacitan/`.
 
@@ -37,7 +39,7 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 **Frontend:** Swipeable day views with uPlot tide chart. Canvas overlays in `TideGraph.tsx` draw hooks (Canvas API, not React styles): night overlay, now marker, H/L tide-extreme labels, and three per-spot rating strips (P/PD/TR) at the bottom of the plot area. `ConditionsPanel.tsx` groups Swell/Wind/Weather cards into a single panel with 3h time block navigation (◀ ▶ arrows, daylight blocks only). Each component has a co-located `.css` file using CSS nesting.
 
-**Daily AI recommendation:** Once daily at 20:00 WIB (`cron.ts` → `recommendation.ts`), the cached `ForecastDay` for *tomorrow* is fed to DeepSeek V4 Flash along with `src/server/knowledge-base.ts` (a Pacitan-specific system prompt). The model returns a structured JSON recommendation that's cached at `surf:recommendation:YYYY-MM-DD` (TTL 36h) and served via `/api/recommendation` to the `RecommendationCard` component at the top of the app. Validated for shape and bounds; failed validation retries once. Gated by `RECOMMENDATION_ENABLED` + `DEEPSEEK_API_KEY` — feature is fully no-op if either is missing.
+**Daily AI recommendation:** Once daily at 20:00 WIB (`cron.ts` → `recommendation.ts`), the cached `ForecastDay` for *tomorrow* is fed to DeepSeek V4 Flash along with `src/server/knowledge-base.ts` (a Pacitan-specific system prompt). The model returns a structured JSON recommendation cached at `surf:recommendation:YYYY-MM-DD` (TTL 36h). `/api/recommendation` looks up **tomorrow's** rec first, falls back to today's — so the rec is readable from 20:00 WIB onwards, not after midnight (this is the whole point: read evening-of, plan tomorrow). The `RecommendationCard` derives "heute"/"morgen" eyebrow from `recommendation.forDate` vs `todayWIB()`. Validated for shape and bounds; failed validation retries once. Gated by `RECOMMENDATION_ENABLED` + `DEEPSEEK_API_KEY` — feature is fully no-op if either is missing.
 
 ## Environment Variables
 
@@ -65,6 +67,9 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - Shared types live in `src/shared/types.ts` — used by both server and client.
 - Per-spot UI metadata (label / abbreviation / emoji) lives in `src/shared/spots.ts` as `SPOT_DISPLAY`, ordered west-to-east. Use it for any spot-labeled UI; don't hardcode `"Pancer"`/`"🏖️"` etc. in components.
 - TideGraph reserves the bottom 77px of the plot area for the per-spot strips via `STRIP_RESERVED` + the `scales.y.range` callback (inflates the y-data range downward by `STRIP_RESERVED * (dataRange / usableHeight)`). To add a new fixed-pixel canvas overlay, extend the reservation, don't try to draw past `u.bbox`.
+- `bun test` uses one shared module cache across all test files (single process). Module-load-time env reads in `config.ts` happen once. To force config values in a test, use `mock.module("../src/server/config", () => ({ ...realConfig, KEY: value }))` after `const realConfig = await import("../src/server/config")` — minimal mocks break when transitive imports need other exports. See `tests/routes.test.ts` for the pattern.
+- Don't import `cache.ts` (transitively) in unit tests — module-load opens a Redis connection. Existing tests stay Redis-free; extract pure logic to its own file (`schedule.ts` exists for this — its `nextFireMs` lives alone so the test doesn't drag in `cache.ts` via `cron.ts`).
+- `bunx tsc --noEmit` has pre-existing failures from broken `../../../shared/types` paths in some client components (Conditions/DayView/TideGraph/etc — should be `../../shared/types`). Vite/Bun bundler resolution masks them at runtime. Use `bun test` as the verification gate, not tsc. Don't "fix" the paths in passing.
 
 ## Deployment
 
@@ -72,6 +77,7 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - nginx: `surf-pacitan.conf` → `surf-pacitan.yolo-goldgrube.pp.ua`
 - Static build: `/var/www/surf-pacitan/`
 - Git remote uses SSH alias `github-surf-pacitan` (configured in `~/.ssh/config`) for deploy key.
+- Production secrets live in `/root/surf-pacitan/.env` (gitignored). The systemd unit uses `EnvironmentFile=-/root/surf-pacitan/.env` to load them; only `PORT` and `NODE_ENV` stay inline as `Environment=` directives. To add/rotate a secret: edit `.env`, then `systemctl restart surf-pacitan.service` (no `daemon-reload` needed unless the unit file itself changes). Bun also auto-loads `.env` for `bun run dev` locally.
 
 ## Service Worker / Cache Busting
 
