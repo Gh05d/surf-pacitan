@@ -1,4 +1,4 @@
-const CACHE_NAME = "surf-pacitan-v9";
+const CACHE_NAME = "surf-pacitan-v10";
 const PRECACHE_URLS = ["/", "/index.html"];
 
 self.addEventListener("install", (event) => {

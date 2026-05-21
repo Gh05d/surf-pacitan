@@ -11,7 +11,7 @@ function findSpotDisplay(key: Recommendation["bestSpot"]) {
   return SPOT_DISPLAY.find((s) => s.key === key) ?? SPOT_DISPLAY[0];
 }
 
-// Asia/Jakarta local date — used to decide "heute" vs "morgen" labelling.
+// Asia/Jakarta local date — used to decide "today" vs "tomorrow" labelling.
 function todayWIB(): string {
   const now = new Date();
   const local = new Date(now.getTime() + 7 * 60 * 60 * 1000);
@@ -22,7 +22,7 @@ function todayWIB(): string {
 }
 
 function eyebrowFor(forDate: string): string {
-  return forDate === todayWIB() ? "🌅 Empfehlung für heute" : "🌅 Empfehlung für morgen";
+  return forDate === todayWIB() ? "🌅 Recommendation for today" : "🌅 Recommendation for tomorrow";
 }
 
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {

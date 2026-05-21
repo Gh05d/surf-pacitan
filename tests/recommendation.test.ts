@@ -69,9 +69,9 @@ function validRecRaw() {
   return {
     bestSpot: "pancerDoor",
     bestWindow: { start: "06:00", end: "09:00" },
-    headline: "Pancer Door am besten morgens 06:00–09:00.",
-    reasoning: "SW-Swell 1.8m@12s trifft auf steigende Tide. Wind dreht um 10:00 onshore — früh los.",
-    warnings: ["Tide-Range nur 1.3m (Nipptide)"],
+    headline: "Pancer Door best in the morning 06:00–09:00.",
+    reasoning: "SW swell 1.8m@12s meets rising tide. Wind flips onshore at 10:00 — get out early.",
+    warnings: ["Tide range only 1.3m (neap)"],
   };
 }
 
@@ -144,8 +144,8 @@ function validModelResponse() {
   return {
     bestSpot: "pancerDoor",
     bestWindow: { start: "06:00", end: "09:00" },
-    headline: "Pancer Door am besten morgens.",
-    reasoning: "Steigende Tide trifft Offshore-Wind und sauberen SW-Swell.",
+    headline: "Pancer Door best in the morning.",
+    reasoning: "Rising tide meets offshore wind and clean SW swell.",
     warnings: [],
   };
 }

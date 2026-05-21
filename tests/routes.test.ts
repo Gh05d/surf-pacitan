@@ -45,8 +45,8 @@ describe("GET /api/recommendation (enabled)", () => {
       generatedAt: "2026-05-19T13:00:00Z",
       bestSpot: "pancerDoor",
       bestWindow: { start: "06:00", end: "09:00" },
-      headline: "Pancer Door am besten morgens.",
-      reasoning: "SW-Swell mit steigender Tide und Offshore-Wind.",
+      headline: "Pancer Door best in the morning.",
+      reasoning: "Rising tide meets offshore wind and clean SW swell.",
       warnings: [],
       modelUsed: "deepseek-v4-flash",
     };
