@@ -22,12 +22,33 @@ export const OPEN_METEO_HOURLY_PARAMS = [
 ].join(",");
 
 // Open-Meteo Marine API
+// We fetch primary + secondary swell so the parser can pick the surf-relevant
+// component. Open-Meteo classifies primary/secondary by amplitude alone — a
+// tall local wind-sea can outrank a long-period groundswell and push the real
+// surf swell into the secondary slot.
 export const OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine";
 export const OPEN_METEO_MARINE_PARAMS = [
   "swell_wave_height",
   "swell_wave_period",
   "swell_wave_direction",
+  "secondary_swell_wave_height",
+  "secondary_swell_wave_period",
+  "secondary_swell_wave_direction",
 ].join(",");
+
+// Open-Meteo weather model: best_match returns suspect wind direction at this
+// coastal point (NE 35° while every other model says E 85-130°). GFS aligns
+// with Wisuki/Surfline reference forecasts.
+export const OPEN_METEO_WEATHER_MODEL = "gfs_seamless";
+
+// Prefer secondary swell over primary when secondary has meaningful height
+// AND is a SIGNIFICANTLY longer-period swell train. Both gates must hold:
+// the height cutoff filters out background noise (e.g. <0.4m long-period
+// remnants), and the period-ratio cutoff filters out wraparound cases where
+// secondary is only marginally longer and often points at a non-surf-relevant
+// direction (e.g. westerly wraparound around the headland).
+export const SURF_SWELL_SECONDARY_MIN_HEIGHT_M = 0.3;
+export const SURF_SWELL_SECONDARY_PERIOD_RATIO = 1.5;
 
 // Surfable thresholds
 export interface WindDirectionThresholds {

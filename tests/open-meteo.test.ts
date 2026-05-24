@@ -76,4 +76,92 @@ describe("parseOpenMeteoMarine", () => {
     expect(result).toHaveLength(1);
     expect(result[0].hour).toBe(12);
   });
+
+  // Open-Meteo classifies "primary" vs "secondary" by AMPLITUDE only. When a
+  // local short-period wind-sea is taller than a long-period groundswell, it
+  // becomes primary and the real surf swell shows up as secondary. The picker
+  // selects whichever component is the actual groundswell (longest period with
+  // meaningful height).
+  test("prefers secondary swell when it has longer period and ≥0.3m height (real groundswell)", () => {
+    // Pacitan 2026-05-25 actual values from live API:
+    // primary  = 1.34m / 6.4s  / 169° (short-period local component)
+    // secondary= 0.56m / 13.15s/ 209° (Indian Ocean groundswell)
+    const raw = {
+      hourly: {
+        time: ["2026-05-25T07:00"],
+        wave_height: [1.5],
+        wave_period: [8.9],
+        wave_direction: [179],
+        wind_wave_height: [0.10],
+        wind_wave_period: [2.2],
+        wind_wave_direction: [93],
+        swell_wave_height: [1.34],
+        swell_wave_period: [6.4],
+        swell_wave_direction: [169],
+        secondary_swell_wave_height: [0.56],
+        secondary_swell_wave_period: [13.15],
+        secondary_swell_wave_direction: [209],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-05-25");
+    expect(result).toHaveLength(1);
+    expect(result[0].height).toBeCloseTo(0.56, 2);
+    expect(result[0].period).toBeCloseTo(13.15, 2);
+    expect(result[0].direction).toBe(209);
+  });
+
+  test("falls back to primary swell when secondary height below threshold (< 0.3m)", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-05-25T07:00"],
+        wave_height: [1.4],
+        swell_wave_height: [1.3],
+        swell_wave_period: [8.0],
+        swell_wave_direction: [200],
+        secondary_swell_wave_height: [0.2],
+        secondary_swell_wave_period: [15.0],
+        secondary_swell_wave_direction: [220],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-05-25");
+    expect(result[0].height).toBe(1.3);
+    expect(result[0].period).toBe(8.0);
+    expect(result[0].direction).toBe(200);
+  });
+
+  // The 1.5× period ratio rule filters out marginal secondaries that often
+  // point at non-surf-relevant directions (e.g. westerly wraparound).
+  test("falls back to primary when secondary period not significantly longer (< 1.5×)", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-05-25T07:00"],
+        wave_height: [1.5],
+        swell_wave_height: [1.18],
+        swell_wave_period: [8.85],
+        swell_wave_direction: [191],
+        secondary_swell_wave_height: [0.50],
+        secondary_swell_wave_period: [11.3],  // 11.3 / 8.85 = 1.28× → not enough
+        secondary_swell_wave_direction: [265],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-05-25");
+    expect(result[0].height).toBe(1.18);
+    expect(result[0].period).toBe(8.85);
+    expect(result[0].direction).toBe(191);
+  });
+
+  test("handles missing secondary fields gracefully (older response shape)", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-05-25T07:00"],
+        swell_wave_height: [1.3],
+        swell_wave_period: [6.4],
+        swell_wave_direction: [174],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-05-25");
+    expect(result[0].height).toBe(1.3);
+    expect(result[0].period).toBe(6.4);
+    expect(result[0].direction).toBe(174);
+  });
 });

@@ -4,6 +4,9 @@ import {
   OPEN_METEO_HOURLY_PARAMS,
   OPEN_METEO_MARINE_URL,
   OPEN_METEO_MARINE_PARAMS,
+  OPEN_METEO_WEATHER_MODEL,
+  SURF_SWELL_SECONDARY_MIN_HEIGHT_M,
+  SURF_SWELL_SECONDARY_PERIOD_RATIO,
   LOCATION,
   FORECAST_DAYS,
   TIMEZONE,
@@ -72,6 +75,7 @@ export async function fetchOpenMeteoWeather(): Promise<any> {
   url.searchParams.set("hourly", OPEN_METEO_HOURLY_PARAMS);
   url.searchParams.set("timezone", TIMEZONE);
   url.searchParams.set("forecast_days", String(FORECAST_DAYS));
+  url.searchParams.set("models", OPEN_METEO_WEATHER_MODEL);
 
   const resp = await fetch(url.toString());
   if (!resp.ok) {
@@ -85,6 +89,24 @@ export async function fetchOpenMeteoWeather(): Promise<any> {
 // Marine Parser (swell data)
 // ---------------------------------------------------------------------------
 
+export function pickSurfSwell(
+  primH: number,
+  primP: number,
+  primD: number,
+  secH: number | null | undefined,
+  secP: number | null | undefined,
+  secD: number | null | undefined,
+): { height: number; period: number; direction: number } {
+  if (
+    secH != null && secP != null && secD != null &&
+    secH >= SURF_SWELL_SECONDARY_MIN_HEIGHT_M &&
+    secP >= primP * SURF_SWELL_SECONDARY_PERIOD_RATIO
+  ) {
+    return { height: secH, period: secP, direction: Math.round(secD) };
+  }
+  return { height: primH, period: primP, direction: Math.round(primD) };
+}
+
 export function parseOpenMeteoMarine(
   raw: any,
   targetDate: string
@@ -97,12 +119,15 @@ export function parseOpenMeteoMarine(
     if (!times[i].startsWith(targetDate)) continue;
 
     const hour = parseInt(times[i].slice(11, 13), 10);
-    results.push({
-      hour,
-      height: h.swell_wave_height[i] ?? 0,
-      period: h.swell_wave_period[i] ?? 0,
-      direction: Math.round(h.swell_wave_direction[i] ?? 0),
-    });
+    const picked = pickSurfSwell(
+      h.swell_wave_height?.[i] ?? 0,
+      h.swell_wave_period?.[i] ?? 0,
+      h.swell_wave_direction?.[i] ?? 0,
+      h.secondary_swell_wave_height?.[i],
+      h.secondary_swell_wave_period?.[i],
+      h.secondary_swell_wave_direction?.[i],
+    );
+    results.push({ hour, ...picked });
   }
 
   return results;
