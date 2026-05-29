@@ -150,6 +150,50 @@ describe("parseOpenMeteoMarine", () => {
     expect(result[0].direction).toBe(191);
   });
 
+  // Regression: a tiny long-period secondary must NOT hijack a much larger
+  // primary. 2026-05-29 verify-vs-wisuki: Wisuki saw 2.1m/13s/199° but the
+  // picker reported 0.40m/16.8s/217° because the only gates were an absolute
+  // 0.3m floor + 1.5× period ratio — a 0.4m sliver cleared both and crushed
+  // the height rating. The secondary must also be a meaningful FRACTION of the
+  // primary's height to win.
+  test("keeps primary when secondary is a tiny fraction of primary height (0.4m vs 2.1m)", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-05-29T07:00"],
+        swell_wave_height: [2.10],
+        swell_wave_period: [11.0],
+        swell_wave_direction: [199],
+        secondary_swell_wave_height: [0.40],   // ≥0.3 floor and 16.8≥1.5×11 — old code switched
+        secondary_swell_wave_period: [16.8],
+        secondary_swell_wave_direction: [217],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-05-29");
+    expect(result[0].height).toBe(2.10);
+    expect(result[0].period).toBe(11.0);
+    expect(result[0].direction).toBe(199);
+  });
+
+  test("still prefers secondary groundswell when its height is a meaningful fraction of primary", () => {
+    // Real groundswell-behind-windsea: primary short-period windsea, secondary
+    // a substantial long-period component (≥ ~1/3 of primary height).
+    const raw = {
+      hourly: {
+        time: ["2026-05-29T07:00"],
+        swell_wave_height: [1.34],
+        swell_wave_period: [6.4],
+        swell_wave_direction: [169],
+        secondary_swell_wave_height: [0.56],   // 0.56/1.34 = 0.42 → meaningful
+        secondary_swell_wave_period: [13.15],
+        secondary_swell_wave_direction: [209],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-05-29");
+    expect(result[0].height).toBeCloseTo(0.56, 2);
+    expect(result[0].period).toBeCloseTo(13.15, 2);
+    expect(result[0].direction).toBe(209);
+  });
+
   test("handles missing secondary fields gracefully (older response shape)", () => {
     const raw = {
       hourly: {

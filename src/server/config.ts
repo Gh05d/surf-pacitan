@@ -49,6 +49,13 @@ export const OPEN_METEO_WEATHER_MODEL = "gfs_seamless";
 // direction (e.g. westerly wraparound around the headland).
 export const SURF_SWELL_SECONDARY_MIN_HEIGHT_M = 0.3;
 export const SURF_SWELL_SECONDARY_PERIOD_RATIO = 1.5;
+// The secondary must also be a meaningful FRACTION of the primary's height to
+// win. Without this, a tiny long-period sliver (e.g. 0.4m / 16.8s) could
+// outrank a much larger primary groundswell (e.g. 2.1m / 11s) just by clearing
+// the absolute floor + period ratio, crushing the height rating to yellow/red.
+// 0.33 keeps genuine groundswell-behind-windsea cases (~0.42 ratio) while
+// rejecting marginal slivers. Verified via scripts/verify-vs-wisuki.ts.
+export const SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO = 0.33;
 
 // Surfable thresholds
 export interface WindDirectionThresholds {
@@ -78,9 +85,14 @@ export interface SpotThresholds {
   };
 }
 
+// Teleng Ria — WESTERN end of the bay, sheltered by the western headland that
+// tempers the main SW dry-season swell. Prefers more directly southern swell
+// (it wraps in past the headland); SW pulses arrive partly shadowed. Narrow,
+// southerly direction window. (Geography user-confirmed 2026-05-29: facing the
+// ocean from Pancer Door, Teleng Ria is to the RIGHT = west.)
 export const SURFABLE_TELENG_RIA: SpotThresholds = {
   tide:        { greenMin: 50, greenMax: 90, yellowMin: 30, yellowMax: 100 },
-  swellDir:    { ideal: 215, greenWindow: 25, yellowWindow: 45 },
+  swellDir:    { ideal: 195, greenWindow: 15, yellowWindow: 30 },
   swellHeight: { greenMin: 0.4, yellowMin: 0.2 },
   swellPeriod: { greenMin: 7,   yellowMin: 5 },
   facingDirection: 195,
@@ -91,9 +103,14 @@ export const SURFABLE_TELENG_RIA: SpotThresholds = {
   },
 };
 
+// Pancer — EASTERN end of the bay, the Grindulu river-mouth sandbar and the
+// most SW-exposed spot (nothing shadows the SW dry-season swell here). Favours
+// SW swell over a wide window. River-mouth sandbar drowns at high tide → low-
+// to-mid rising tide. (Geography user-confirmed 2026-05-29: facing the ocean
+// from Pancer Door, Pancer is to the LEFT = east.)
 export const SURFABLE_PANCER: SpotThresholds = {
   tide:        { greenMin: 30, greenMax: 60, yellowMin: 15, yellowMax: 80 },
-  swellDir:    { ideal: 195, greenWindow: 15, yellowWindow: 30 },
+  swellDir:    { ideal: 215, greenWindow: 25, yellowWindow: 45 },
   swellHeight: { greenMin: 0.5, yellowMin: 0.3 },
   swellPeriod: { greenMin: 8,   yellowMin: 6 },
   facingDirection: 195,

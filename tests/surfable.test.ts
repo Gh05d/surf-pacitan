@@ -215,6 +215,30 @@ describe("computeWindQuality", () => {
   });
 });
 
+describe("per-spot swell-direction exposure (geography-corrected 2026-05-29)", () => {
+  // User-confirmed local geography: facing the ocean from Pancer Door, Pancer
+  // is to the LEFT (= EAST, Grindulu river mouth, most SW-exposed) and Teleng
+  // Ria to the RIGHT (= WEST, sheltered by the western headland that tempers SW
+  // dry-season pulses). So the EXPOSED east spot (Pancer) should favour SW
+  // swell, the SHELTERED west spot (Teleng Ria) should favour more southerly
+  // swell. Earlier config had these two ideals inverted.
+
+  test("SW swell 220° → Pancer (exposed, east) green on direction", () => {
+    expect(computeSwellDirQuality(220, SPOT_THRESHOLDS.pancer.swellDir)).toBe("green");
+  });
+  test("SW swell 220° → Teleng Ria (sheltered, west) not green on direction", () => {
+    expect(computeSwellDirQuality(220, SPOT_THRESHOLDS.telengRia.swellDir)).not.toBe("green");
+  });
+  test("southerly swell 195° → Teleng Ria (sheltered, west) green on direction", () => {
+    expect(computeSwellDirQuality(195, SPOT_THRESHOLDS.telengRia.swellDir)).toBe("green");
+  });
+  test("Pancer ideal is more south-westerly than Teleng Ria ideal", () => {
+    expect(SPOT_THRESHOLDS.pancer.swellDir.ideal).toBeGreaterThan(
+      SPOT_THRESHOLDS.telengRia.swellDir.ideal
+    );
+  });
+});
+
 describe("computeSurfable — 2026-05-17 validation table", () => {
   const sunrise = "05:41";
   const sunset = "17:25";

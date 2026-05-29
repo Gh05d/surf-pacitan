@@ -15,10 +15,12 @@ describe("SPOT_DISPLAY", () => {
     }
   });
 
-  test("ordering is west-to-east (Pancer, Pancer Door, Teleng Ria)", () => {
-    expect(SPOT_DISPLAY[0].key).toBe("pancer");
+  test("ordering is west-to-east (Teleng Ria, Pancer Door, Pancer)", () => {
+    // Geography confirmed 2026-05-29: Teleng Ria is the western end, Pancer the
+    // eastern river mouth. See CLAUDE.md "Spot geography".
+    expect(SPOT_DISPLAY[0].key).toBe("telengRia");
     expect(SPOT_DISPLAY[1].key).toBe("pancerDoor");
-    expect(SPOT_DISPLAY[2].key).toBe("telengRia");
+    expect(SPOT_DISPLAY[2].key).toBe("pancer");
   });
 
   test("each spot has non-empty label, abbr, emoji", () => {

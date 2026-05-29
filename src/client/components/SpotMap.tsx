@@ -14,10 +14,13 @@ function createSpotIcon(emoji: string) {
   });
 }
 
+// West-to-east along the bay (geography confirmed 2026-05-29): the westmost
+// point is Teleng Ria, the easternmost (Grindulu river mouth, ~111.10) is
+// Pancer. Earlier the eastern river-mouth marker was mislabeled "Pancer Door".
 const SPOTS = [
-  { name: "Teleng Ria", lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly", emoji: SPOT_DISPLAY.find((s) => s.key === "telengRia")!.emoji },
-  { name: "Pancer", lat: -8.2215, lng: 111.0880, desc: "Beachbreak, lefts & rights", emoji: SPOT_DISPLAY.find((s) => s.key === "pancer")!.emoji },
-  { name: "Pancer Door", lat: -8.2298, lng: 111.1026, desc: "River mouth sandbar, left", emoji: SPOT_DISPLAY.find((s) => s.key === "pancerDoor")!.emoji },
+  { name: "Teleng Ria",  lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly", emoji: SPOT_DISPLAY.find((s) => s.key === "telengRia")!.emoji },
+  { name: "Pancer Door", lat: -8.2215, lng: 111.0880, desc: "Long open beach break", emoji: SPOT_DISPLAY.find((s) => s.key === "pancerDoor")!.emoji },
+  { name: "Pancer",      lat: -8.2298, lng: 111.1026, desc: "River-mouth sandbar, left", emoji: SPOT_DISPLAY.find((s) => s.key === "pancer")!.emoji },
 ];
 
 const DEFAULT_CENTER: L.LatLngExpression = [-8.227, 111.088];

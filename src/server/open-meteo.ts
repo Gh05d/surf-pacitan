@@ -7,6 +7,7 @@ import {
   OPEN_METEO_WEATHER_MODEL,
   SURF_SWELL_SECONDARY_MIN_HEIGHT_M,
   SURF_SWELL_SECONDARY_PERIOD_RATIO,
+  SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO,
   LOCATION,
   FORECAST_DAYS,
   TIMEZONE,
@@ -100,6 +101,7 @@ export function pickSurfSwell(
   if (
     secH != null && secP != null && secD != null &&
     secH >= SURF_SWELL_SECONDARY_MIN_HEIGHT_M &&
+    secH >= primH * SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO &&
     secP >= primP * SURF_SWELL_SECONDARY_PERIOD_RATIO
   ) {
     return { height: secH, period: secP, direction: Math.round(secD) };

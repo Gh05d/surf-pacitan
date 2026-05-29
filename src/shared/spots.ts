@@ -7,10 +7,11 @@ export interface SpotDisplayInfo {
   emoji: string;   // per-spot descriptive emoji
 }
 
-// Ordered west-to-east along Pacitan bay (local naming convention).
-// Public surf guides label these differently — see CLAUDE.md "Spot geography".
+// Ordered west-to-east along Pacitan bay: Teleng Ria (west, sheltered) →
+// Pancer Door (middle, long beach) → Pancer (east, Grindulu river mouth).
+// Geography confirmed by the user 2026-05-29 — see CLAUDE.md "Spot geography".
 export const SPOT_DISPLAY: readonly SpotDisplayInfo[] = [
-  { key: "pancer",     label: "Pancer",      abbr: "P",  emoji: "🏞️" },
-  { key: "pancerDoor", label: "Pancer Door", abbr: "PD", emoji: "🏖️" },
   { key: "telengRia",  label: "Teleng Ria",  abbr: "TR", emoji: "🌅" },
+  { key: "pancerDoor", label: "Pancer Door", abbr: "PD", emoji: "🏖️" },
+  { key: "pancer",     label: "Pancer",      abbr: "P",  emoji: "🏞️" },
 ] as const;
