@@ -93,6 +93,11 @@ export interface SpotThresholds {
 export const SURFABLE_TELENG_RIA: SpotThresholds = {
   tide:        { greenMin: 50, greenMax: 90, yellowMin: 30, yellowMax: 100 },
   swellDir:    { ideal: 195, greenWindow: 15, yellowWindow: 30 },
+  // Lowest height threshold of the three on purpose: Teleng Ria is the bay's
+  // beginner / small-wave beach and breaks on small swell (verified 2026-05-29
+  // across surfindonesia/indonesiansurfguide/surf-atlas + local learn-to-surf
+  // pages, high confidence). The headland makes it tamer than the exposed east
+  // end, but it still works for learners on small days — do NOT raise this.
   swellHeight: { greenMin: 0.4, yellowMin: 0.2 },
   swellPeriod: { greenMin: 7,   yellowMin: 5 },
   facingDirection: 195,
