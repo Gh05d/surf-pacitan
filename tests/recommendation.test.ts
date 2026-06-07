@@ -1,5 +1,6 @@
 import { describe, test, expect, mock } from "bun:test";
 import { buildUserPayload } from "../src/server/recommendation";
+import { computeCandidateWindows } from "../src/server/candidates";
 import type { ForecastDay } from "../src/shared/types";
 
 function sampleForecast(overrides: Partial<ForecastDay> = {}): ForecastDay {
@@ -146,6 +147,121 @@ describe("validateRecommendation", () => {
     delete r.headline;
     const result = validateRecommendation(r);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("validateRecommendation with candidate context", () => {
+  // pancerDoor green 06-07 → top candidate 06:00-08:00;
+  // pancer green 09-10 → candidate 2 09:00-11:00; telengRia all red.
+  function validationForecast(): ForecastDay {
+    const mk = (h: number, p: "green" | "yellow" | "red", pd: "green" | "yellow" | "red") => ({
+      hour: h,
+      tide: { height: 0.5, rising: true },
+      swell: { height: 1.5, period: 12, direction: 200 },
+      wind: { speed: 10, direction: 100, gusts: 15 },
+      weather: { temp: 27, condition: "clear", precipitation: 0 },
+      surfable: { telengRia: "red" as const, pancer: p, pancerDoor: pd },
+    });
+    return sampleForecast({
+      hourly: [
+        mk(6, "yellow", "green"),
+        mk(7, "yellow", "green"),
+        mk(8, "yellow", "yellow"),
+        mk(9, "green", "yellow"),
+        mk(10, "green", "yellow"),
+        mk(11, "yellow", "yellow"),
+      ],
+    });
+  }
+
+  function contextFor(forecast: ForecastDay) {
+    return { candidates: computeCandidateWindows(forecast), forecast };
+  }
+
+  test("fixture sanity: top candidate is pancerDoor 06:00-08:00", () => {
+    const ctx = contextFor(validationForecast());
+    expect(ctx.candidates[0]).toMatchObject({ spot: "pancerDoor", start: "06:00", end: "08:00" });
+    expect(ctx.candidates[1]).toMatchObject({ spot: "pancer", start: "09:00", end: "11:00" });
+    expect(ctx.candidates).toHaveLength(2);
+  });
+
+  test("accepts a pick that follows the top candidate exactly, no overrideReason needed", () => {
+    const f = validationForecast();
+    const raw = { ...validRecRaw(), bestSpot: "pancerDoor", bestWindow: { start: "06:00", end: "08:00" } };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.overrideReason).toBeUndefined();
+  });
+
+  test("accepts a pick within ±1h of the top candidate without overrideReason", () => {
+    const f = validationForecast();
+    const raw = { ...validRecRaw(), bestSpot: "pancerDoor", bestWindow: { start: "06:00", end: "09:00" } };
+    expect(validateRecommendation(raw, contextFor(f)).ok).toBe(true);
+  });
+
+  test("rejects a deviation without overrideReason", () => {
+    const f = validationForecast();
+    const raw = { ...validRecRaw(), bestSpot: "pancer", bestWindow: { start: "09:00", end: "11:00" } };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("overrideReason");
+  });
+
+  test("accepts a deviation with overrideReason and carries it through", () => {
+    const f = validationForecast();
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "pancer",
+      bestWindow: { start: "09:00", end: "11:00" },
+      overrideReason: "tide push stronger 09-11 while wind stays 10 km/h",
+    };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.overrideReason).toBe("tide push stronger 09-11 while wind stays 10 km/h");
+  });
+
+  test("rejects a window containing a red hour even with overrideReason", () => {
+    const f = validationForecast();
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "telengRia",
+      bestWindow: { start: "06:00", end: "08:00" },
+      overrideReason: "sheltered from the wind",
+    };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("red hour");
+  });
+
+  test("rejects a window reaching outside forecast hours", () => {
+    const f = validationForecast();
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "pancerDoor",
+      bestWindow: { start: "04:00", end: "06:00" },
+      overrideReason: "dawn patrol",
+    };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("outside forecast");
+  });
+
+  test("rejects overrideReason longer than 300 chars", () => {
+    const f = validationForecast();
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "pancer",
+      bestWindow: { start: "09:00", end: "11:00" },
+      overrideReason: "x".repeat(301),
+    };
+    expect(validateRecommendation(raw, contextFor(f)).ok).toBe(false);
+  });
+
+  test("empty candidates list degrades to legacy validation (no candidate checks)", () => {
+    const f = validationForecast();
+    const raw = { ...validRecRaw(), bestSpot: "telengRia", bestWindow: { start: "06:00", end: "08:00" } };
+    const result = validateRecommendation(raw, { candidates: [], forecast: f });
+    expect(result.ok).toBe(true);
   });
 });
 

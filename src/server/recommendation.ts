@@ -22,12 +22,18 @@ export interface UserPayload {
 const VALID_SPOTS: SpotName[] = ["telengRia", "pancer", "pancerDoor"];
 const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+export interface ValidationContext {
+  candidates: CandidateWindow[];
+  forecast: ForecastDay;
+}
+
 export interface ValidatedRecommendationFields {
   bestSpot: SpotName;
   bestWindow: { start: string; end: string };
   headline: string;
   reasoning: string;
   warnings: string[];
+  overrideReason?: string;
 }
 
 export type ValidationResult =
@@ -40,7 +46,7 @@ function parseHHMM(s: string): number | null {
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
-export function validateRecommendation(raw: unknown): ValidationResult {
+export function validateRecommendation(raw: unknown, context?: ValidationContext): ValidationResult {
   if (!raw || typeof raw !== "object") return { ok: false, error: "raw is not an object" };
   const r = raw as Record<string, unknown>;
 
@@ -80,6 +86,50 @@ export function validateRecommendation(raw: unknown): ValidationResult {
     if (wn.length > 200) return { ok: false, error: "warning string too long (>200)" };
   }
 
+  // overrideReason: optional, <= 300 chars
+  let overrideReason: string | undefined;
+  if (r.overrideReason !== undefined && r.overrideReason !== null && r.overrideReason !== "") {
+    if (typeof r.overrideReason !== "string") {
+      return { ok: false, error: "overrideReason must be a string" };
+    }
+    if (r.overrideReason.length > 300) {
+      return { ok: false, error: "overrideReason too long (>300)" };
+    }
+    overrideReason = r.overrideReason;
+  }
+
+  // Candidate discipline (see 2026-06-07 candidate-windows spec): with
+  // candidates present, the pick must follow the top candidate (±1h) or
+  // justify the deviation; red hours are never allowed. Without context or
+  // candidates (legacy callers, fully red day) these checks are skipped.
+  if (context && context.candidates.length > 0) {
+    const ratingsByHour = new Map(context.forecast.hourly.map((h) => [h.hour, h.surfable]));
+    const firstHour = Math.floor(startMin / 60);
+    const lastHour = Math.ceil(endMin / 60) - 1;
+    for (let h = firstHour; h <= lastHour; h += 1) {
+      const ratings = ratingsByHour.get(h);
+      if (!ratings) {
+        return { ok: false, error: `bestWindow hour ${h} outside forecast hours` };
+      }
+      if (ratings[bestSpot] === "red") {
+        return { ok: false, error: `bestWindow contains red hour ${h} for ${bestSpot}` };
+      }
+    }
+
+    const top = context.candidates[0];
+    const topStart = parseHHMM(top.start);
+    const topEnd = parseHHMM(top.end);
+    const followsTop =
+      bestSpot === top.spot &&
+      topStart !== null &&
+      topEnd !== null &&
+      Math.abs(startMin - topStart) <= 60 &&
+      Math.abs(endMin - topEnd) <= 60;
+    if (!followsTop && !overrideReason) {
+      return { ok: false, error: "deviates from top candidate without overrideReason" };
+    }
+  }
+
   return {
     ok: true,
     value: {
@@ -88,6 +138,7 @@ export function validateRecommendation(raw: unknown): ValidationResult {
       headline: r.headline,
       reasoning: r.reasoning,
       warnings: r.warnings as string[],
+      ...(overrideReason ? { overrideReason } : {}),
     },
   };
 }

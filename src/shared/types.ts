@@ -76,9 +76,10 @@ export interface Recommendation {
   generatedAt: string;              // ISO timestamp of generation
   bestSpot: SpotName;
   bestWindow: RecommendationWindow;
-  headline: string;                 // 1 sentence summary, German
-  reasoning: string;                // 2-3 sentences, German, <= 600 chars
+  headline: string;                 // 1 sentence summary, English
+  reasoning: string;                // 2-3 sentences, English, <= 600 chars
   warnings: string[];               // empty array or short warning strings
+  overrideReason?: string;          // only when deviating from the top candidate window, <= 300 chars
   modelUsed: string;                // e.g. "deepseek-v4-flash"
 }
 
