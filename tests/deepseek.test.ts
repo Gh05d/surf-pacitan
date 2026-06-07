@@ -67,6 +67,20 @@ describe("callDeepSeek", () => {
     expect(body.response_format).toEqual({ type: "json_object" });
   });
 
+  test("sends max_tokens 8000 so thinking + answer fit the shared budget", async () => {
+    mockResponse = { status: 200, body: okResponseWith({ ok: true }) };
+    await callDeepSeek({
+      apiKey: "sk-test",
+      model: "deepseek-v4-flash",
+      systemPrompt: "sys",
+      userPayload: {},
+      thinking: true,
+      timeoutMs: 5000,
+    });
+    const body = JSON.parse(calls[0].init.body as string);
+    expect(body.max_tokens).toBe(8000);
+  });
+
   test("returns the parsed JSON content from message", async () => {
     mockResponse = { status: 200, body: okResponseWith({ pick: "pancer" }) };
     const result = await callDeepSeek({
@@ -117,6 +131,71 @@ describe("callDeepSeek", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(DeepSeekError);
       expect((err as DeepSeekError).reason).toBe("parse");
+    }
+  });
+
+  // 2026-06-07 incident: thinking mode shares max_tokens with the final answer.
+  // When reasoning overruns the budget, the API returns HTTP 200 with
+  // finish_reason "length" and an EMPTY content string. That must surface as a
+  // distinct truncation error, not a generic "not valid JSON" parse error.
+  test("throws a truncation error when content is empty with finish_reason length", async () => {
+    mockResponse = {
+      status: 200,
+      body: {
+        choices: [{ finish_reason: "length", message: { content: "", reasoning_content: "long thoughts…" } }],
+        usage: { prompt_tokens: 3564, completion_tokens: 4000, total_tokens: 7564 },
+      },
+    };
+    try {
+      await callDeepSeek({
+        apiKey: "sk-test",
+        model: "deepseek-v4-flash",
+        systemPrompt: "sys",
+        userPayload: {},
+        thinking: true,
+        timeoutMs: 5000,
+      });
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(DeepSeekError);
+      expect((err as DeepSeekError).reason).toBe("truncated");
+      expect((err as DeepSeekError).message).toContain("max_tokens");
+    }
+  });
+
+  test("aborts with a timeout error when the response body stalls past timeoutMs", async () => {
+    // fetch resolves on headers; DeepSeek streams keep-alive bytes while thinking,
+    // so the body read is the slow path (40s observed 2026-06-07). The abort must
+    // stay armed until the body is fully read.
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      const signal = init.signal as AbortSignal | undefined;
+      const stream = new ReadableStream({
+        start(controller) {
+          const t = setTimeout(() => {
+            controller.enqueue(new TextEncoder().encode("{}"));
+            controller.close();
+          }, 200);
+          signal?.addEventListener("abort", () => {
+            clearTimeout(t);
+            controller.error(new DOMException("aborted", "AbortError"));
+          });
+        },
+      });
+      return new Response(stream, { status: 200 });
+    }) as any;
+    try {
+      await callDeepSeek({
+        apiKey: "sk-test",
+        model: "deepseek-v4-flash",
+        systemPrompt: "sys",
+        userPayload: {},
+        thinking: true,
+        timeoutMs: 20,
+      });
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(DeepSeekError);
+      expect((err as DeepSeekError).reason).toBe("timeout");
     }
   });
 

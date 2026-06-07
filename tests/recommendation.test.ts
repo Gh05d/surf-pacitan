@@ -197,11 +197,29 @@ describe("generateTomorrowRecommendation", () => {
     expect(rec.generatedAt).toBe(frozenNow().toISOString());
   });
 
-  test("does NOT overwrite cache when DeepSeek throws", async () => {
+  test("does NOT overwrite cache when DeepSeek throws on every attempt", async () => {
     const setRecommendation = mock(async () => {});
     const callDeepSeek = mock(async () => { throw new Error("boom"); });
     await generateTomorrowRecommendation(makeDeps({ setRecommendation, callDeepSeek }));
+    expect(callDeepSeek).toHaveBeenCalledTimes(2);
     expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  // 2026-06-07 incident: a single stochastic DeepSeek failure (thinking overran
+  // max_tokens → empty content → parse error) killed the whole night's rec because
+  // call errors bypassed the retry loop. Call failures must retry like validation
+  // failures do.
+  test("retries once when the DeepSeek call throws, succeeds on second attempt", async () => {
+    let nthCall = 0;
+    const callDeepSeek = mock(async () => {
+      nthCall += 1;
+      if (nthCall === 1) throw new Error("truncated content");
+      return { content: validModelResponse(), usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 } };
+    });
+    const setRecommendation = mock(async () => {});
+    await generateTomorrowRecommendation(makeDeps({ callDeepSeek, setRecommendation }));
+    expect(callDeepSeek).toHaveBeenCalledTimes(2);
+    expect(setRecommendation).toHaveBeenCalledTimes(1);
   });
 
   test("retries once when validation fails on first response, succeeds second", async () => {

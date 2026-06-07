@@ -166,7 +166,10 @@ export const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 export const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY ?? "";
 export const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash";
 export const DEEPSEEK_THINKING = process.env.DEEPSEEK_THINKING !== "false";
-export const DEEPSEEK_TIMEOUT_MS = 15_000;
+// Covers the FULL call including body read (headers arrive fast, but the body
+// streams only after thinking completes — ~40s for a 4k-token reasoning run,
+// up to ~90s worst case with the 8k budget).
+export const DEEPSEEK_TIMEOUT_MS = 120_000;
 
 // Enabled default: true when API key is set, unless explicitly RECOMMENDATION_ENABLED=false
 export const RECOMMENDATION_ENABLED =

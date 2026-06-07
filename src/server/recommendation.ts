@@ -188,7 +188,15 @@ export async function generateTomorrowRecommendation(deps: GenerateDeps = DEFAUL
       });
     } catch (err) {
       console.error(`[recommendation] attempt ${attempt} DeepSeek call failed:`, err);
-      return; // do not retry on HTTP/parse error; preserves existing cached rec
+      // Call failures are often transient (thinking overran max_tokens, network
+      // blip, 5xx) — retry once like validation failures. 2026-06-07: a single
+      // truncated response killed the whole night's rec because this path
+      // returned immediately. Final failure still preserves the cached rec.
+      if (attempt === 2) {
+        console.error("[recommendation] giving up after 2 failed calls");
+        return;
+      }
+      continue;
     }
 
     const validation = validateRecommendation(result.content);

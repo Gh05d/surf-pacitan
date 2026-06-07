@@ -23,7 +23,7 @@ export interface DeepSeekOptions {
 export class DeepSeekError extends Error {
   constructor(
     message: string,
-    public readonly reason: "http" | "parse" | "shape" | "timeout",
+    public readonly reason: "http" | "parse" | "shape" | "timeout" | "truncated",
     public readonly status?: number,
     public readonly bodyExcerpt?: string,
   ) {
@@ -47,13 +47,23 @@ export async function callDeepSeek(opts: DeepSeekOptions): Promise<DeepSeekResul
     ],
     response_format: { type: "json_object" },
     temperature: 0.7,
-    max_tokens: 4000,
+    // Thinking mode shares this budget between reasoning and the final answer.
+    // Observed reasoning for this prompt: ~1400–3600+ tokens (stochastic). 4000
+    // left so little headroom that reasoning occasionally swallowed the whole
+    // budget → HTTP 200 with EMPTY content (2026-06-07 incident). Answer needs
+    // only ~250 tokens, so 8000 leaves ample room.
+    max_tokens: 8000,
   };
   if (opts.thinking) {
     body.thinking = { type: "enabled" };
   }
 
+  // fetch resolves once HEADERS arrive, but DeepSeek streams keep-alive bytes
+  // while the model is still thinking — the body read is the slow path (40s
+  // observed on 2026-06-07 against a nominal "15s" timeout that only guarded
+  // headers). Keep the abort armed until the body is fully read.
   let response: Response;
+  let text: string;
   try {
     response = await fetch(DEEPSEEK_API_URL, {
       method: "POST",
@@ -64,16 +74,15 @@ export async function callDeepSeek(opts: DeepSeekOptions): Promise<DeepSeekResul
       body: JSON.stringify(body),
       signal: controller.signal,
     });
+    text = await response.text();
   } catch (err) {
-    clearTimeout(timeout);
     if ((err as Error).name === "AbortError") {
       throw new DeepSeekError("DeepSeek request timed out", "timeout");
     }
     throw new DeepSeekError(`DeepSeek fetch failed: ${(err as Error).message}`, "http");
+  } finally {
+    clearTimeout(timeout);
   }
-  clearTimeout(timeout);
-
-  const text = await response.text();
 
   if (!response.ok) {
     throw new DeepSeekError(
@@ -94,6 +103,19 @@ export async function callDeepSeek(opts: DeepSeekOptions): Promise<DeepSeekResul
   const message = parsed?.choices?.[0]?.message?.content;
   if (typeof message !== "string") {
     throw new DeepSeekError("DeepSeek response missing choices[0].message.content", "shape", response.status, text.slice(0, 500));
+  }
+
+  // Thinking overran max_tokens: the API returns 200 with finish_reason
+  // "length" and empty/cut-off content. Surface it as what it is, not as a
+  // generic JSON parse error (2026-06-07 incident).
+  const finishReason = parsed?.choices?.[0]?.finish_reason;
+  if (message === "" || finishReason === "length") {
+    throw new DeepSeekError(
+      `DeepSeek content ${message === "" ? "empty" : "truncated"} (finish_reason=${String(finishReason)}) — thinking likely overran max_tokens`,
+      "truncated",
+      response.status,
+      message.slice(0, 500),
+    );
   }
 
   let content: unknown;
