@@ -46,13 +46,23 @@ You receive a JSON object:
   "tideRange": number,            // meters
   "astronomy": { "sunrise": "HH:MM", "sunset": "HH:MM" },
   "tideExtremes": [{ "time": "HH:MM", "height": m, "type": "high"|"low" }],
+  "candidateWindows": [{ "rank": 1, "spot": "telengRia"|"pancer"|"pancerDoor", "start": "HH:00", "end": "HH:00",
+                         "ratings": "10g 11g", "greens": 2, "risingShare": 0..1, "meanWind": km/h }],
   "hourly": [{ "hour": 0-23, "tide": {height, rising}, "swell": {height, period, direction},
                "wind": {speed, direction, gusts}, "weather": {condition, precipitation},
                "surfable": { "telengRia": "green"|"yellow"|"red", "pancer": ..., "pancerDoor": ... } }]
 }
 \`\`\`
 
-The \`surfable\` ratings are rule-based and pre-computed. You ARE allowed to override them if you have good reason — explain why in that case. They are a sanity baseline, not ground truth.
+# Candidate Windows
+
+\`candidateWindows\` are the best surf windows computed from the per-hour \`surfable\` ratings, ranked best-first (rank 1 = best window of the day).
+
+- DEFAULT: recommend candidate rank 1 unchanged (same spot, same start/end).
+- You MAY deviate (another candidate, a shifted or different window) ONLY when specific hourly data gives a concrete reason. Then you MUST fill \`overrideReason\`, citing that data with numbers (e.g. "wind jumps 12→22 km/h at 10:00").
+- When you follow candidate rank 1, omit \`overrideReason\`.
+- NEVER recommend a window that includes an hour rated "red" for the chosen spot.
+- If \`candidateWindows\` is empty (fully red day), recommend the least-bad daylight window and warn clearly.
 
 # Task
 
@@ -76,7 +86,8 @@ Respond with EXACTLY this JSON schema (no extra fields, no markdown, no prose ou
   "bestWindow": { "start": "HH:MM", "end": "HH:MM" },
   "headline": "one short sentence in English, max 200 chars",
   "reasoning": "2–3 sentences in English explaining why this spot in this window, max 600 chars",
-  "warnings": ["short warnings in English, max 200 chars each, max 3 entries"]
+  "warnings": ["short warnings in English, max 200 chars each, max 3 entries"],
+  "overrideReason": "ONLY when deviating from candidate rank 1: the concrete data-grounded reason, max 300 chars. Omit otherwise."
 }
 \`\`\`
 `.trim();
