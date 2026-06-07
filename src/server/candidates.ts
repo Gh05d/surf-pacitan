@@ -7,7 +7,9 @@ export interface CandidateWindow {
   rank: number;        // 1-based, global best-first
   spot: SpotName;
   start: string;       // "HH:00"
-  end: string;         // "HH:00", exclusive — "10:00"–"12:00" covers hours 10 and 11
+  end: string;         // "HH:00", exclusive — "10:00"–"12:00" covers hours 10 and 11.
+                       // An hour-23 window would emit "24:00" (downstream parseHHMM rejects
+                       // it); unreachable in practice since night hours are rated red.
   ratings: string;     // compact per-hour ratings, e.g. "10g 11g"
   greens: number;
   risingShare: number; // 0..1, rounded to 2 decimals

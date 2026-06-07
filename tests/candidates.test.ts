@@ -140,4 +140,29 @@ describe("computeCandidateWindows", () => {
     const c = computeCandidateWindows(day);
     expect(c[0]).toMatchObject({ start: "06:00", end: "08:00" });
   });
+
+  test("shorter window wins a full tie (endHour tie-break)", () => {
+    const day = dayWith([
+      { h: 8, p: "yellow" },
+      { h: 9, p: "yellow" },
+      { h: 10, p: "yellow" },
+    ]);
+    const c = computeCandidateWindows(day);
+    expect(c[0]).toMatchObject({ start: "08:00", end: "10:00" });
+  });
+
+  test("an isolated 1h green is not considered when a >=2h non-red run exists", () => {
+    // Run-length precedence is a product decision (see 2026-06-07 spec): the 1h
+    // fallback only applies when NO run reaches length 2 — even if the isolated
+    // hour is green and the longer run is all yellow.
+    const day = dayWith([
+      { h: 6, p: "green" },
+      { h: 7 }, // red gap
+      { h: 9, p: "yellow" },
+      { h: 10, p: "yellow" },
+    ]);
+    const c = computeCandidateWindows(day);
+    expect(c).toHaveLength(1);
+    expect(c[0]).toMatchObject({ start: "09:00", end: "11:00", greens: 0 });
+  });
 });
