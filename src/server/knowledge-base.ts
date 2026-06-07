@@ -59,9 +59,10 @@ You receive a JSON object:
 \`candidateWindows\` are the best surf windows computed from the per-hour \`surfable\` ratings, ranked best-first (rank 1 = best window of the day).
 
 - DEFAULT: recommend candidate rank 1 unchanged (same spot, same start/end).
-- You MAY deviate (another candidate, a shifted or different window) ONLY when specific hourly data gives a concrete reason. Then you MUST fill \`overrideReason\`, citing that data with numbers (e.g. "wind jumps 12→22 km/h at 10:00").
+- You MAY deviate ONLY when specific hourly data gives a concrete reason. A deviation means: a different spot than rank 1, OR a window whose start or end moves more than 1 hour from rank 1's. (Nudging rank 1's own window by up to 1 hour is not a deviation — no reason needed.) For any real deviation you MUST fill \`overrideReason\`, citing the data with numbers (max 300 chars, e.g. "wind jumps 12→22 km/h at 10:00").
 - When you follow candidate rank 1, omit \`overrideReason\`.
 - NEVER recommend a window that includes an hour rated "red" for the chosen spot.
+- A candidate can be the best window of the day even with \`greens: 0\` (all-yellow). On marginal days still DEFAULT to rank 1 — recommend it and note in \`warnings\` that conditions are marginal. If you genuinely prefer a different window, that is a deviation and requires \`overrideReason\`.
 - If \`candidateWindows\` is empty (fully red day), recommend the least-bad daylight window and warn clearly.
 
 # Task
