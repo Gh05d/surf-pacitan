@@ -52,6 +52,11 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         <div className="recommendation-card-body">
           <p className="recommendation-card-headline">{recommendation.headline}</p>
           <p className="recommendation-card-reasoning">{recommendation.reasoning}</p>
+          {recommendation.overrideReason && (
+            <p className="recommendation-card-override">
+              ⤷ Differs from the top-rated window: {recommendation.overrideReason}
+            </p>
+          )}
           {recommendation.warnings.length > 0 && (
             <ul className="recommendation-card-warnings">
               {recommendation.warnings.map((w, i) => (
