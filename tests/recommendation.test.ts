@@ -61,6 +61,23 @@ describe("buildUserPayload", () => {
     expect(payload.astronomy).toEqual(fc.astronomy);
     expect(payload.tideExtremes).toEqual(fc.tideExtremes);
   });
+
+  test("payload includes ranked candidateWindows", () => {
+    const payload = buildUserPayload(sampleForecast());
+    // sampleForecast has a single hour (06): pancer+pancerDoor green, telengRia
+    // yellow → three 1h-fallback candidates; pancer/pancerDoor tie resolves
+    // west-to-east, so pancerDoor ranks first.
+    expect(payload.candidateWindows).toHaveLength(3);
+    expect(payload.candidateWindows[0]).toMatchObject({
+      rank: 1,
+      spot: "pancerDoor",
+      start: "06:00",
+      end: "07:00",
+      greens: 1,
+    });
+    expect(payload.candidateWindows[1].spot).toBe("pancer");
+    expect(payload.candidateWindows[2].spot).toBe("telengRia");
+  });
 });
 
 import { validateRecommendation } from "../src/server/recommendation";

@@ -1,4 +1,5 @@
 import type { ForecastDay, SpotRatings, SpotName, TideExtreme } from "../shared/types";
+import { computeCandidateWindows, type CandidateWindow } from "./candidates";
 
 export interface PayloadHourly {
   hour: number;
@@ -14,6 +15,7 @@ export interface UserPayload {
   tideRange: number;
   astronomy: { sunrise: string; sunset: string };
   tideExtremes: TideExtreme[];
+  candidateWindows: CandidateWindow[];
   hourly: PayloadHourly[];
 }
 
@@ -99,6 +101,7 @@ export function buildUserPayload(forecast: ForecastDay): UserPayload {
     tideRange,
     astronomy: forecast.astronomy,
     tideExtremes: forecast.tideExtremes,
+    candidateWindows: computeCandidateWindows(forecast),
     hourly: forecast.hourly.map((h) => ({
       hour: h.hour,
       tide: h.tide,
