@@ -259,9 +259,16 @@ export async function generateTomorrowRecommendation(deps: GenerateDeps = DEFAUL
       continue;
     }
 
-    const validation = validateRecommendation(result.content);
+    const validation = validateRecommendation(result.content, {
+      candidates: userPayload.candidateWindows,
+      forecast,
+    });
     if (!validation.ok) {
-      console.warn(`[recommendation] attempt ${attempt} validation failed: ${validation.error}`);
+      const picked = result.content as Record<string, unknown> | null;
+      console.warn(
+        `[recommendation] attempt ${attempt} validation failed: ${validation.error}` +
+          ` (model picked ${String(picked?.bestSpot)} ${JSON.stringify(picked?.bestWindow ?? null)})`,
+      );
       if (attempt === 2) {
         console.error("[recommendation] giving up after 2 failed validations");
         return;
@@ -277,6 +284,7 @@ export async function generateTomorrowRecommendation(deps: GenerateDeps = DEFAUL
       headline: validation.value.headline,
       reasoning: validation.value.reasoning,
       warnings: validation.value.warnings,
+      ...(validation.value.overrideReason ? { overrideReason: validation.value.overrideReason } : {}),
       modelUsed: deps.model,
     };
 

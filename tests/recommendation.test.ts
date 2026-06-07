@@ -347,7 +347,9 @@ function frozenNow(): Date {
 function validModelResponse() {
   return {
     bestSpot: "pancerDoor",
-    bestWindow: { start: "06:00", end: "09:00" },
+    // Matches sampleForecast's top candidate (pancerDoor 06:00-07:00) so the
+    // wired-in candidate enforcement accepts it without overrideReason.
+    bestWindow: { start: "06:00", end: "07:00" },
     headline: "Pancer Door best in the morning.",
     reasoning: "Rising tide meets offshore wind and clean SW swell.",
     warnings: [],
@@ -396,7 +398,7 @@ describe("generateTomorrowRecommendation", () => {
     const rec = captured[0];
     expect(rec.forDate).toBe("2026-05-20");
     expect(rec.bestSpot).toBe("pancerDoor");
-    expect(rec.bestWindow).toEqual({ start: "06:00", end: "09:00" });
+    expect(rec.bestWindow).toEqual({ start: "06:00", end: "07:00" });
     expect(rec.modelUsed).toBe("deepseek-v4-flash");
     expect(rec.generatedAt).toBe(frozenNow().toISOString());
   });
@@ -458,5 +460,34 @@ describe("generateTomorrowRecommendation", () => {
     await generateTomorrowRecommendation(makeDeps({ apiKey: "", callDeepSeek, setRecommendation }));
     expect(callDeepSeek).not.toHaveBeenCalled();
     expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("rejects a deviating pick without overrideReason via candidate enforcement, then gives up", async () => {
+    const callDeepSeek = mock(async () => ({
+      // Deviates from sampleForecast's top candidate (pancerDoor 06:00-07:00)
+      // with no overrideReason → validation must reject on both attempts.
+      content: { ...validModelResponse(), bestSpot: "pancer" },
+      usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+    }));
+    const setRecommendation = mock(async () => {});
+    await generateTomorrowRecommendation(makeDeps({ callDeepSeek, setRecommendation }));
+    expect(callDeepSeek).toHaveBeenCalledTimes(2);
+    expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("persists overrideReason when the model justifies a deviation", async () => {
+    const captured: Recommendation[] = [];
+    const setRecommendation = mock(async (rec: Recommendation) => { captured.push(rec); });
+    const callDeepSeek = mock(async () => ({
+      content: {
+        ...validModelResponse(),
+        bestSpot: "pancer",
+        overrideReason: "wind stays 8 km/h at pancer while pancerDoor gusts 25",
+      },
+      usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+    }));
+    await generateTomorrowRecommendation(makeDeps({ callDeepSeek, setRecommendation }));
+    expect(captured).toHaveLength(1);
+    expect(captured[0].overrideReason).toBe("wind stays 8 km/h at pancer while pancerDoor gusts 25");
   });
 });
