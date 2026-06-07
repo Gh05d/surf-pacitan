@@ -86,24 +86,26 @@ export function validateRecommendation(raw: unknown, context?: ValidationContext
     if (wn.length > 200) return { ok: false, error: "warning string too long (>200)" };
   }
 
-  // overrideReason: optional, <= 300 chars
+  // overrideReason: optional, <= 300 chars; whitespace-only counts as absent.
   let overrideReason: string | undefined;
-  if (r.overrideReason !== undefined && r.overrideReason !== null && r.overrideReason !== "") {
+  if (r.overrideReason !== undefined && r.overrideReason !== null) {
     if (typeof r.overrideReason !== "string") {
       return { ok: false, error: "overrideReason must be a string" };
     }
     if (r.overrideReason.length > 300) {
       return { ok: false, error: "overrideReason too long (>300)" };
     }
-    overrideReason = r.overrideReason;
+    overrideReason = r.overrideReason.trim() || undefined;
   }
 
   // Candidate discipline (see 2026-06-07 candidate-windows spec): with
   // candidates present, the pick must follow the top candidate (±1h) or
   // justify the deviation; red hours are never allowed. Without context or
   // candidates (legacy callers, fully red day) these checks are skipped.
+  let deviatesFromTop = false;
   if (context && context.candidates.length > 0) {
     const ratingsByHour = new Map(context.forecast.hourly.map((h) => [h.hour, h.surfable]));
+    // Hours overlapped by [start, end): end 08:00 doesn't touch hour 8, 08:01 does.
     const firstHour = Math.floor(startMin / 60);
     const lastHour = Math.ceil(endMin / 60) - 1;
     for (let h = firstHour; h <= lastHour; h += 1) {
@@ -128,6 +130,7 @@ export function validateRecommendation(raw: unknown, context?: ValidationContext
     if (!followsTop && !overrideReason) {
       return { ok: false, error: "deviates from top candidate without overrideReason" };
     }
+    deviatesFromTop = !followsTop;
   }
 
   return {
@@ -138,7 +141,10 @@ export function validateRecommendation(raw: unknown, context?: ValidationContext
       headline: r.headline,
       reasoning: r.reasoning,
       warnings: r.warnings as string[],
-      ...(overrideReason ? { overrideReason } : {}),
+      // Only persist the reason when the pick actually deviates — models love
+      // to over-fill optional fields, and the card renders this as "differs
+      // from the top window".
+      ...(overrideReason && deviatesFromTop ? { overrideReason } : {}),
     },
   };
 }

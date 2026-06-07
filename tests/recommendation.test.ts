@@ -263,6 +263,77 @@ describe("validateRecommendation with candidate context", () => {
     const result = validateRecommendation(raw, { candidates: [], forecast: f });
     expect(result.ok).toBe(true);
   });
+
+  test("rejects a non-string overrideReason", () => {
+    const result = validateRecommendation({ ...validRecRaw(), overrideReason: 42 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("overrideReason");
+  });
+
+  test("treats null and empty-string overrideReason as absent", () => {
+    const f = validationForecast();
+    for (const empty of [null, ""]) {
+      const raw = {
+        ...validRecRaw(),
+        bestSpot: "pancerDoor",
+        bestWindow: { start: "06:00", end: "08:00" },
+        overrideReason: empty,
+      };
+      const result = validateRecommendation(raw, contextFor(f));
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.overrideReason).toBeUndefined();
+    }
+  });
+
+  test("whitespace-only overrideReason does not license a deviation", () => {
+    const f = validationForecast();
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "pancer",
+      bestWindow: { start: "09:00", end: "11:00" },
+      overrideReason: "   ",
+    };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("overrideReason");
+  });
+
+  test("does not carry overrideReason when the pick follows the top candidate", () => {
+    const f = validationForecast();
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "pancerDoor",
+      bestWindow: { start: "06:00", end: "08:00" },
+      overrideReason: "models love to over-fill optional fields",
+    };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.overrideReason).toBeUndefined();
+  });
+
+  test("red-hour floor beats the ±1h follows tolerance", () => {
+    // pancerDoor green 06-07, RED 08 → top candidate 06:00-08:00. A +1h stretch
+    // to 09:00 stays within followsTop tolerance but crosses the red hour 08 —
+    // the floor must win, reason or not.
+    const mk = (h: number, pd: "green" | "yellow" | "red") => ({
+      hour: h,
+      tide: { height: 0.5, rising: true },
+      swell: { height: 1.5, period: 12, direction: 200 },
+      wind: { speed: 10, direction: 100, gusts: 15 },
+      weather: { temp: 27, condition: "clear", precipitation: 0 },
+      surfable: { telengRia: "red" as const, pancer: "yellow" as const, pancerDoor: pd },
+    });
+    const f = sampleForecast({ hourly: [mk(6, "green"), mk(7, "green"), mk(8, "red")] });
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "pancerDoor",
+      bestWindow: { start: "06:00", end: "09:00" },
+      overrideReason: "pushing past the run",
+    };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("red hour");
+  });
 });
 
 import { generateTomorrowRecommendation, type GenerateDeps } from "../src/server/recommendation";
