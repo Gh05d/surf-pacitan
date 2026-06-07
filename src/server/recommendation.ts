@@ -267,7 +267,7 @@ export async function generateTomorrowRecommendation(deps: GenerateDeps = DEFAUL
       const picked = result.content as Record<string, unknown> | null;
       console.warn(
         `[recommendation] attempt ${attempt} validation failed: ${validation.error}` +
-          ` (model picked ${String(picked?.bestSpot)} ${JSON.stringify(picked?.bestWindow ?? null)})`,
+          ` (model picked ${String(picked?.bestSpot)} ${JSON.stringify(picked?.bestWindow ?? null).slice(0, 200)})`,
       );
       if (attempt === 2) {
         console.error("[recommendation] giving up after 2 failed validations");
