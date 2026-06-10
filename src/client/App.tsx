@@ -1,9 +1,12 @@
 import { useState, useCallback, useRef } from "react";
+import type { SpotName } from "../shared/types";
 import { useForecast } from "./hooks/useForecast";
 import { Header } from "./components/Header";
 import { DayView } from "./components/DayView";
 import { SpotMap } from "./components/SpotMap";
 import { RecommendationCard } from "./components/RecommendationCard";
+import { NowBanner } from "./components/NowBanner";
+import { SpotInfoSheet } from "./components/SpotInfoSheet";
 import { useRecommendation } from "./hooks/useRecommendation";
 import "./App.css";
 
@@ -21,6 +24,7 @@ export function App() {
   const [dayIndex, setDayIndex] = useState(0);
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const [animating, setAnimating] = useState(false);
+  const [infoSpot, setInfoSpot] = useState<SpotName | null>(null);
   const swipeStartX = useRef(0);
   const multiTouchActive = useRef(false);
 
@@ -147,6 +151,9 @@ export function App() {
         ))}
       </div>
 
+      {/* Best remaining window from the current hour (today only) */}
+      {dayIndex === 0 && <NowBanner day={currentDay} />}
+
       {/* Main content */}
       <div className="day-content-outer">
         <div style={{
@@ -154,10 +161,12 @@ export function App() {
           transform: slideDir === "left" ? "translateX(-30%)" : slideDir === "right" ? "translateX(30%)" : "translateX(0)",
           opacity: animating ? 0 : 1,
         }}>
-          <DayView key={currentDay.date} day={currentDay} isToday={dayIndex === 0} />
+          <DayView key={currentDay.date} day={currentDay} isToday={dayIndex === 0} onSpotInfo={setInfoSpot} />
         </div>
       </div>
-      <SpotMap />
+      <SpotMap onSpotInfo={setInfoSpot} />
+
+      <SpotInfoSheet spot={infoSpot} onClose={() => setInfoSpot(null)} />
     </div>
   );
 }

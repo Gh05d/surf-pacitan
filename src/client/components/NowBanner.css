@@ -1,0 +1,46 @@
+.now-banner {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 1rem 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 0.8rem;
+
+  & .now-banner-label {
+    color: var(--text-dim);
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  & .now-banner-window {
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &.good {
+    border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+  }
+
+  &.marginal {
+    border-color: color-mix(in srgb, var(--yellow) 35%, var(--border));
+  }
+
+  &.none {
+    color: var(--text-dim);
+    justify-content: center;
+  }
+}
+
+@media (min-width: 768px) {
+  .now-banner {
+    margin: 0 1.5rem 0.5rem;
+  }
+}

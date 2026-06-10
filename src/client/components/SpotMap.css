@@ -148,3 +148,16 @@
     }
   }
 }
+
+/* "Spot profile" link inside Leaflet popups */
+.spot-popup-details {
+  margin-top: 0.35rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #0a6ebd;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

@@ -104,3 +104,55 @@
     padding: 0.75rem 1.25rem;
   }
 }
+
+/* Per-spot "why this color" rows for the selected block */
+.conditions-panel-spots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-top: 1px solid var(--border);
+
+  & .conditions-spot-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    padding: 0.15rem 0;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.78rem;
+
+    & .conditions-spot-name {
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--text);
+      min-width: 3.2rem;
+      text-decoration: underline dotted rgba(255, 255, 255, 0.35);
+      text-underline-offset: 3px;
+    }
+
+    & .conditions-spot-dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      flex-shrink: 0;
+
+      &.green { background: var(--green); }
+      &.yellow { background: var(--yellow); }
+      &.red { background: var(--red); }
+    }
+
+    & .conditions-spot-reason {
+      color: var(--text-dim);
+      line-height: 1.35;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .conditions-panel-spots {
+    padding: 0.6rem 1.25rem 0.85rem;
+  }
+}

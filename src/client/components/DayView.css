@@ -58,8 +58,39 @@
     background: var(--green-bg);
   }
 
+  &.marginal {
+    background: var(--yellow-bg);
+  }
+
   &.nogo {
     background: var(--red-bg);
+  }
+
+  & .surf-window-section + .surf-window-section {
+    margin-top: 0.55rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  &.marginal .surf-window-title,
+  & .surf-window-section.possible .surf-window-title {
+    color: var(--yellow);
+  }
+
+  & .surf-window-section.dimmed {
+    opacity: 0.75;
+    font-size: 0.78rem;
+
+    & .surf-window-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    & .surf-window-spot-name,
+    & .surf-window-spot-times {
+      font-size: 0.78rem;
+    }
   }
 
   & .surf-window-title {
@@ -104,10 +135,19 @@
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   }
 
+  /* Spot names are tap targets opening the spot profile sheet */
   & .surf-window-spot-name {
     font-family: var(--font-display);
     font-weight: 600;
     font-size: 0.85rem;
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    text-shadow: inherit;
+    cursor: pointer;
+    text-decoration: underline dotted rgba(255, 255, 255, 0.45);
+    text-underline-offset: 3px;
   }
 
   & .surf-window-spot-times {

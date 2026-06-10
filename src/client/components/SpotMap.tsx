@@ -3,6 +3,11 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./SpotMap.css";
 import { SPOT_DISPLAY } from "../../shared/spots";
+import type { SpotName } from "../../shared/types";
+
+interface SpotMapProps {
+  onSpotInfo: (spot: SpotName) => void;
+}
 
 function createSpotIcon(emoji: string) {
   return L.divIcon({
@@ -18,16 +23,16 @@ function createSpotIcon(emoji: string) {
 // point is Teleng Ria, the easternmost (Grindulu river mouth, ~111.10) is
 // Pancer. Earlier the eastern river-mouth marker was mislabeled "Pancer Door".
 const SPOTS = [
-  { name: "Teleng Ria",  lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly", emoji: SPOT_DISPLAY.find((s) => s.key === "telengRia")!.emoji },
-  { name: "Pancer Door", lat: -8.2215, lng: 111.0880, desc: "Long open beach break", emoji: SPOT_DISPLAY.find((s) => s.key === "pancerDoor")!.emoji },
-  { name: "Pancer",      lat: -8.2298, lng: 111.1026, desc: "River-mouth sandbar, left", emoji: SPOT_DISPLAY.find((s) => s.key === "pancer")!.emoji },
+  { key: "telengRia" as SpotName,  name: "Teleng Ria",  lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly", emoji: SPOT_DISPLAY.find((s) => s.key === "telengRia")!.emoji },
+  { key: "pancerDoor" as SpotName, name: "Pancer Door", lat: -8.2215, lng: 111.0880, desc: "Long open beach break", emoji: SPOT_DISPLAY.find((s) => s.key === "pancerDoor")!.emoji },
+  { key: "pancer" as SpotName,     name: "Pancer",      lat: -8.2298, lng: 111.1026, desc: "River-mouth sandbar, left", emoji: SPOT_DISPLAY.find((s) => s.key === "pancer")!.emoji },
 ];
 
 const DEFAULT_CENTER: L.LatLngExpression = [-8.227, 111.088];
 const DEFAULT_ZOOM = 14;
 const FLY_TO_ZOOM = 15;
 
-export function SpotMap() {
+export function SpotMap({ onSpotInfo }: SpotMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -35,6 +40,10 @@ export function SpotMap() {
   const [activeSpot, setActiveSpot] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
+  // The map effect runs once; route popup clicks through a ref so they always
+  // see the current callback.
+  const onSpotInfoRef = useRef(onSpotInfo);
+  onSpotInfoRef.current = onSpotInfo;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -53,8 +62,18 @@ export function SpotMap() {
 
     markersRef.current = SPOTS.map((spot) => {
       const marker = L.marker([spot.lat, spot.lng], { icon: createSpotIcon(spot.emoji) }).addTo(map);
-      marker.bindPopup(`<strong>${spot.name}</strong><br>${spot.desc}`);
+      marker.bindPopup(
+        `<strong>${spot.name}</strong><br>${spot.desc}<br>` +
+        `<button class="spot-popup-details" data-spot="${spot.key}">Spot profile ↗</button>`,
+      );
       return marker;
+    });
+
+    // Popup content is a Leaflet HTML string — wire the details button on open.
+    map.on("popupopen", (e) => {
+      const btn = e.popup.getElement()?.querySelector<HTMLButtonElement>(".spot-popup-details");
+      if (!btn) return;
+      btn.onclick = () => onSpotInfoRef.current(btn.dataset.spot as SpotName);
     });
 
     mapRef.current = map;

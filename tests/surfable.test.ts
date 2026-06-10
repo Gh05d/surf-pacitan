@@ -389,3 +389,126 @@ describe("computeAllSpotRatings — 2026-05-17 differentiation", () => {
     expect(result.telengRia).toBe("green");
   });
 });
+
+import {
+  computeFactorBreakdown,
+  describeLimitingFactor,
+  degreesToCompass,
+} from "../src/shared/surfable";
+
+describe("computeFactorBreakdown", () => {
+  const base = {
+    hour: 9,
+    tidePercent: 50,
+    tideRising: true,
+    swellHeight: 1.5,
+    swellPeriod: 11,
+    swellDirection: 210,
+    windSpeed: 6,
+    windDirection: 15, // offshore for facing 195
+    sunrise: "05:41",
+    sunset: "17:25",
+  };
+
+  const variants = [
+    { name: "all green rising", input: base },
+    { name: "falling-tide cap", input: { ...base, tideRising: false } },
+    { name: "dark hour", input: { ...base, hour: 4 } },
+    { name: "wind-limited yellow", input: { ...base, windSpeed: 16, windDirection: 195 } },
+    { name: "tide red", input: { ...base, tidePercent: 5 } },
+    { name: "multi-factor yellow", input: { ...base, swellHeight: 0.45, swellPeriod: 7 } },
+    { name: "swell direction red", input: { ...base, swellDirection: 90 } },
+  ];
+
+  test("final always matches computeSurfable (consistency matrix, all spots)", () => {
+    for (const { name, input } of variants) {
+      for (const [spot, t] of Object.entries(SPOT_THRESHOLDS)) {
+        const breakdown = computeFactorBreakdown(input, t);
+        expect(`${name}/${spot}:${breakdown.final}`).toBe(
+          `${name}/${spot}:${computeSurfable(input, t)}`,
+        );
+      }
+    }
+  });
+
+  test("green hour has no limiting factors", () => {
+    const b = computeFactorBreakdown(base, SPOT_THRESHOLDS.pancerDoor);
+    expect(b.final).toBe("green");
+    expect(b.limiting).toEqual([]);
+  });
+
+  test("falling-tide cap is reported as the sole limiter", () => {
+    const b = computeFactorBreakdown({ ...base, tideRising: false }, SPOT_THRESHOLDS.pancerDoor);
+    expect(b.final).toBe("yellow");
+    expect(b.limiting).toEqual(["fallingTide"]);
+  });
+
+  test("dark hour is limited by daylight only", () => {
+    const b = computeFactorBreakdown({ ...base, hour: 4 }, SPOT_THRESHOLDS.pancerDoor);
+    expect(b.final).toBe("red");
+    expect(b.limiting).toEqual(["daylight"]);
+  });
+
+  test("onshore wind yellow names wind as the limiter", () => {
+    const b = computeFactorBreakdown(
+      { ...base, windSpeed: 16, windDirection: 195 },
+      SPOT_THRESHOLDS.pancerDoor,
+    );
+    expect(b.final).toBe("yellow");
+    expect(b.limiting).toEqual(["wind"]);
+    expect(b.windCategory).toBe("onshore");
+  });
+
+  test("multiple factors at the final level are all listed", () => {
+    const b = computeFactorBreakdown(
+      { ...base, swellHeight: 0.45, swellPeriod: 7 },
+      SPOT_THRESHOLDS.pancerDoor,
+    );
+    expect(b.final).toBe("yellow");
+    expect(b.limiting).toEqual(["swellHeight", "swellPeriod"]);
+  });
+});
+
+describe("degreesToCompass", () => {
+  test("maps key directions", () => {
+    expect(degreesToCompass(0)).toBe("N");
+    expect(degreesToCompass(90)).toBe("E");
+    expect(degreesToCompass(195)).toBe("SSW");
+    expect(degreesToCompass(215)).toBe("SW");
+    expect(degreesToCompass(359)).toBe("N");
+    expect(degreesToCompass(-15)).toBe("NNW");
+  });
+});
+
+describe("describeLimitingFactor", () => {
+  const input = {
+    hour: 9,
+    tidePercent: 92,
+    tideRising: true,
+    swellHeight: 0.3,
+    swellPeriod: 6,
+    swellDirection: 145,
+    windSpeed: 16.4,
+    windDirection: 145,
+    sunrise: "05:41",
+    sunset: "17:25",
+  };
+  const t = SPOT_THRESHOLDS.pancer;
+
+  test("phrases each factor with concrete numbers", () => {
+    expect(describeLimitingFactor("wind", input, t)).toBe("onshore wind 16 km/h");
+    expect(describeLimitingFactor("tide", input, t)).toBe("tide too high (92% of daily range)");
+    expect(describeLimitingFactor("tide", { ...input, tidePercent: 8 }, t)).toBe(
+      "tide too low (8% of daily range)",
+    );
+    expect(describeLimitingFactor("swellHeight", input, t)).toBe("swell too small (0.3 m)");
+    expect(describeLimitingFactor("swellPeriod", input, t)).toBe("short swell period (6s)");
+    expect(describeLimitingFactor("swellDir", input, t)).toBe(
+      "swell from SE 145° — ideal is SW 215°",
+    );
+    expect(describeLimitingFactor("fallingTide", input, t)).toBe(
+      "falling tide — sandbars need rising water",
+    );
+    expect(describeLimitingFactor("daylight", input, t)).toBe("dark — outside daylight");
+  });
+});

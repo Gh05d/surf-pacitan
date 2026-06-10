@@ -1,6 +1,16 @@
 import { useState } from "react";
-import type { ForecastDay, HourlyData, SurfableRating, SpotName } from "../../../shared/types";
+import type { ForecastDay, HourlyData, SpotName } from "../../../shared/types";
 import { SPOT_DISPLAY } from "../../shared/spots";
+import { SPOT_THRESHOLDS } from "../../shared/spot-config";
+import type { SpotThresholds } from "../../shared/spot-config";
+import {
+  computeFactorBreakdown,
+  describeLimitingFactor,
+  moreSevereLimitingExample,
+  surfableInputForHour,
+  type LimitingFactor,
+  type SurfableInput,
+} from "../../shared/surfable";
 import { TideGraph } from "./TideGraph";
 import { TideGraphModal } from "./TideGraphModal";
 import { ConditionsPanel } from "./ConditionsPanel";
@@ -9,6 +19,7 @@ import "./DayView.css";
 interface DayViewProps {
   day: ForecastDay;
   isToday: boolean;
+  onSpotInfo: (spot: SpotName) => void;
 }
 
 function parseHHmm(hhmm: string): number {
@@ -23,7 +34,6 @@ interface SpotWindow {
   end: number;
   rating: "green" | "yellow";
 }
-
 
 function findWindowsForRating(hourly: HourlyData[], spotKey: SpotName, label: string, targetRating: "green" | "yellow"): SpotWindow[] {
   const windows: SpotWindow[] = [];
@@ -47,38 +57,89 @@ function findWindowsForRating(hourly: HourlyData[], spotKey: SpotName, label: st
   return windows;
 }
 
-function findSpotWindows(hourly: HourlyData[]): { windows: SpotWindow[]; reason: string } {
-  // Try green windows first
-  let allWindows: SpotWindow[] = [];
+function findWindows(hourly: HourlyData[], targetRating: "green" | "yellow"): SpotWindow[] {
+  const all: SpotWindow[] = [];
   for (const { key, label } of SPOT_DISPLAY) {
-    allWindows.push(...findWindowsForRating(hourly, key, label, "green"));
+    all.push(...findWindowsForRating(hourly, key, label, targetRating));
   }
+  return all;
+}
 
-  // If no green, fall back to yellow
-  if (allWindows.length === 0) {
-    for (const { key, label } of SPOT_DISPLAY) {
-      allWindows.push(...findWindowsForRating(hourly, key, label, "yellow"));
+function noWindowReason(hourly: HourlyData[]): string {
+  const hasSwell = hourly.some((h) => h.swell.height >= 0.2);
+  const hasLightWind = hourly.some((h) => h.wind.speed < 20);
+  if (!hasSwell) return "No swell — flat conditions all day.";
+  if (!hasLightWind) return "Too much wind — blown out all day.";
+  return "Conditions not aligned — check tide, wind direction, and swell.";
+}
+
+// The dominant limiting factor across all hours of the given yellow windows —
+// replaces the old hardcoded (and wrong) "Rising tide + favorable wind" note.
+function limitingNote(day: ForecastDay, windows: SpotWindow[]): string | null {
+  const counts = new Map<LimitingFactor, number>();
+  const reps = new Map<LimitingFactor, { input: SurfableInput; thresholds: SpotThresholds }>();
+
+  for (const w of windows) {
+    const thresholds = SPOT_THRESHOLDS[w.spotKey];
+    for (const h of day.hourly) {
+      if (h.hour < w.start || h.hour >= w.end) continue;
+      const input = surfableInputForHour(day, h);
+      const breakdown = computeFactorBreakdown(input, thresholds);
+      for (const factor of breakdown.limiting) {
+        counts.set(factor, (counts.get(factor) ?? 0) + 1);
+        const rep = reps.get(factor);
+        if (!rep || moreSevereLimitingExample(factor, input, rep.input)) {
+          reps.set(factor, { input, thresholds });
+        }
+      }
     }
   }
 
-  if (allWindows.length === 0) {
-    const hasSwell = hourly.some((h) => h.swell.height >= 0.2);
-    const hasLightWind = hourly.some((h) => h.wind.speed < 20);
-    if (!hasSwell) return { windows: [], reason: "No swell — flat conditions all day." };
-    if (!hasLightWind) return { windows: [], reason: "Too much wind — blown out all day." };
-    return { windows: [], reason: "Conditions not aligned — check tide, wind direction, and swell." };
-  }
-
-  return { windows: allWindows, reason: "" };
+  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (!dominant) return null;
+  const rep = reps.get(dominant[0])!;
+  return `Limited by ${describeLimitingFactor(dominant[0], rep.input, rep.thresholds)}.`;
 }
 
 function formatWindow(start: number, end: number): string {
   return `${String(start).padStart(2, "0")}:00–${String(end).padStart(2, "0")}:00`;
 }
 
-export function DayView({ day, isToday }: DayViewProps) {
-  const { windows, reason } = findSpotWindows(day.hourly);
+function SpotWindowRows({ windows, onSpotInfo }: { windows: SpotWindow[]; onSpotInfo: (spot: SpotName) => void }) {
+  return (
+    <div className="surf-window-spots">
+      {SPOT_DISPLAY.map(({ key, label, abbr, emoji }) => {
+        const spotWindows = windows.filter((w) => w.spotKey === key);
+        if (spotWindows.length === 0) return null;
+        return (
+          <div key={key} className="surf-window-spot-row">
+            <button className="surf-window-spot-name" onClick={() => onSpotInfo(key)}>
+              🏄 {emoji} {label} ({abbr})
+            </button>
+            <span className="surf-window-spot-times">
+              {spotWindows.map((w, i) => (
+                <span key={i}>{i > 0 && ", "}{formatWindow(w.start, w.end)}</span>
+              ))}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function DayView({ day, isToday, onSpotInfo }: DayViewProps) {
   const [modalOpen, setModalOpen] = useState(false);
+
+  const greenWindows = findWindows(day.hourly, "green");
+  const allYellow = findWindows(day.hourly, "yellow");
+  const hasGreen = greenWindows.length > 0;
+  // With green windows present, yellow is secondary context — hide short
+  // 1h slivers to keep the box calm. Without green, yellow IS the day.
+  const yellowWindows = hasGreen ? allYellow.filter((w) => w.end - w.start >= 2) : allYellow;
+  const hasAny = hasGreen || yellowWindows.length > 0;
+
+  const yellowNote = yellowWindows.length > 0 ? limitingNote(day, yellowWindows) : null;
 
   const sunriseMin = parseHHmm(day.astronomy.sunrise);
   const sunsetMin = parseHHmm(day.astronomy.sunset);
@@ -89,7 +150,8 @@ export function DayView({ day, isToday }: DayViewProps) {
   const daylightWidth = sunsetPercent - sunrisePercent;
 
   // Best window start hour for ConditionsPanel default
-  const bestWindowStart = windows.length > 0 ? Math.min(...windows.map((w) => w.start)) : null;
+  const primaryWindows = hasGreen ? greenWindows : yellowWindows;
+  const bestWindowStart = primaryWindows.length > 0 ? Math.min(...primaryWindows.map((w) => w.start)) : null;
 
   return (
     <div className="day-view">
@@ -115,37 +177,28 @@ export function DayView({ day, isToday }: DayViewProps) {
         </div>
       </div>
 
-      {/* Best window recommendation */}
-      <div className={`surf-window ${windows.length > 0 ? "go" : "nogo"}`}>
-        {windows.length > 0 ? (
+      {/* Surf windows: green ("Best") prominent, yellow ("Possible") dimmed below */}
+      <div className={`surf-window ${hasAny ? (hasGreen ? "go" : "marginal") : "nogo"}`}>
+        {hasAny ? (
           <>
-            <div className="surf-window-title">
-              {windows.some((w) => w.rating === "green") ? "Best windows" : "Possible windows"}
-            </div>
-            <div className="surf-window-spots">
-              {SPOT_DISPLAY.map(({ key, label, abbr, emoji }) => {
-                const spotWindows = windows.filter((w) => w.spotKey === key);
-                if (spotWindows.length === 0) return null;
-                return (
-                  <div key={key} className="surf-window-spot-row">
-                    <span className="surf-window-spot-name">🏄 {emoji} {label} ({abbr})</span>
-                    <span className="surf-window-spot-times">
-                      {spotWindows.map((w, i) => (
-                        <span key={i}>{i > 0 && ", "}{formatWindow(w.start, w.end)}</span>
-                      ))}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="surf-window-note">
-              Rising tide + favorable wind direction.
-            </div>
+            {hasGreen && (
+              <div className="surf-window-section">
+                <div className="surf-window-title">Best windows</div>
+                <SpotWindowRows windows={greenWindows} onSpotInfo={onSpotInfo} />
+              </div>
+            )}
+            {yellowWindows.length > 0 && (
+              <div className={`surf-window-section possible${hasGreen ? " dimmed" : ""}`}>
+                <div className="surf-window-title">Possible windows</div>
+                <SpotWindowRows windows={yellowWindows} onSpotInfo={onSpotInfo} />
+                {yellowNote && <div className="surf-window-note">{yellowNote}</div>}
+              </div>
+            )}
           </>
         ) : (
           <>
             <div className="surf-window-title">No surf window</div>
-            <div className="surf-window-note">{reason}</div>
+            <div className="surf-window-note">{noWindowReason(day.hourly)}</div>
           </>
         )}
       </div>
@@ -161,10 +214,12 @@ export function DayView({ day, isToday }: DayViewProps) {
 
       {/* Conditions panel with time navigation */}
       <ConditionsPanel
+        day={day}
         hourly={day.hourly}
         astronomy={day.astronomy}
         isToday={isToday}
         bestWindowStart={bestWindowStart}
+        onSpotInfo={onSpotInfo}
       />
 
       <TideGraphModal

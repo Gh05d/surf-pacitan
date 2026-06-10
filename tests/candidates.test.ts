@@ -166,3 +166,37 @@ describe("computeCandidateWindows", () => {
     expect(c[0]).toMatchObject({ start: "09:00", end: "11:00", greens: 0 });
   });
 });
+
+import { bestRemainingWindow } from "../src/shared/candidates";
+
+describe("bestRemainingWindow", () => {
+  const day = () =>
+    dayWith([
+      { h: 6, p: "green", pd: "yellow", tr: "yellow", rising: true, wind: 8 },
+      { h: 7, p: "green", pd: "yellow", tr: "yellow", rising: true, wind: 9 },
+      { h: 8, p: "yellow", pd: "yellow", tr: "yellow", rising: true, wind: 12 },
+      { h: 14, p: "red", pd: "yellow", tr: "yellow", rising: true, wind: 15 },
+      { h: 15, p: "red", pd: "yellow", tr: "green", rising: true, wind: 14 },
+      { h: 16, p: "red", pd: "yellow", tr: "green", rising: false, wind: 13 },
+    ]);
+
+  test("fromHour 0 returns the day's overall rank 1", () => {
+    const w = bestRemainingWindow(day(), 0);
+    expect(w).toMatchObject({ spot: "pancer", start: "06:00", end: "08:00" });
+  });
+
+  test("hours before fromHour never appear (morning green excluded after noon)", () => {
+    const w = bestRemainingWindow(day(), 14);
+    expect(w).toMatchObject({ spot: "telengRia", start: "15:00" });
+    expect(parseInt(w!.start, 10)).toBeGreaterThanOrEqual(14);
+  });
+
+  test("returns null when no hours remain", () => {
+    expect(bestRemainingWindow(day(), 20)).toBeNull();
+  });
+
+  test("returns null when only red hours remain", () => {
+    const d = dayWith([{ h: 16, p: "red", pd: "red", tr: "red" }]);
+    expect(bestRemainingWindow(d, 10)).toBeNull();
+  });
+});
