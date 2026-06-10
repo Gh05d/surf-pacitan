@@ -14,7 +14,7 @@ import { generateTomorrowRecommendation } from "./recommendation";
 import { nextFireMs } from "./schedule";
 import {
   LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS,
-  RECOMMENDATION_ENABLED, DEEPSEEK_API_KEY,
+  RECOMMENDATION_ENABLED,
   RECOMMENDATION_CRON_UTC_HOUR, RECOMMENDATION_CRON_UTC_MINUTE,
 } from "./config";
 import type { ForecastDay, HourlyData, SwellData, WindData, WeatherData } from "../shared/types";
@@ -274,12 +274,14 @@ export function startScheduler(): void {
   // Tides once daily at midnight local (UTC+7 = 17:00 UTC)
   scheduleMidnightTideFetch();
 
-  // Daily recommendation generation (20:00 WIB = 13:00 UTC), only if enabled
-  if (RECOMMENDATION_ENABLED && DEEPSEEK_API_KEY) {
+  // Daily recommendation generation (20:00 WIB = 13:00 UTC), only if enabled.
+  // RECOMMENDATION_ENABLED already requires at least one provider (Claude CLI
+  // or DeepSeek key) — see config.ts.
+  if (RECOMMENDATION_ENABLED) {
     scheduleDailyRecommendation();
     console.log("[cron] recommendation cron registered (20:00 WIB)");
   } else {
-    console.log("[cron] recommendation cron NOT registered (RECOMMENDATION_ENABLED=false or no API key)");
+    console.log("[cron] recommendation cron NOT registered (RECOMMENDATION_ENABLED=false or no provider)");
   }
 
   console.log(

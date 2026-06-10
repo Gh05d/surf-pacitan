@@ -193,12 +193,16 @@ export function buildUserPayload(forecast: ForecastDay): UserPayload {
 
 import { getCachedDay as defaultGetCachedDay, setRecommendation as defaultSetRecommendation } from "./cache";
 import { callDeepSeek as defaultCallDeepSeek, type DeepSeekResult } from "./deepseek";
+import { callClaudeCli as defaultCallClaudeCli, type ClaudeCliResult } from "./claude-cli";
 import { PACITAN_SURF_KNOWLEDGE } from "./knowledge-base";
 import {
   DEEPSEEK_API_KEY,
   DEEPSEEK_MODEL,
   DEEPSEEK_THINKING,
   DEEPSEEK_TIMEOUT_MS,
+  RECOMMENDATION_CLI_ENABLED,
+  RECOMMENDATION_CLI_MODEL,
+  RECOMMENDATION_CLI_TIMEOUT_MS,
 } from "./config";
 import type { Recommendation } from "../shared/types";
 
@@ -213,22 +217,35 @@ export interface GenerateDeps {
     thinking: boolean;
     timeoutMs: number;
   }) => Promise<DeepSeekResult>;
+  callClaudeCli: (opts: {
+    model: string;
+    systemPrompt: string;
+    userPayload: unknown;
+    timeoutMs: number;
+  }) => Promise<ClaudeCliResult>;
   now: () => Date;
   apiKey: string;
   model: string;
   thinking: boolean;
   timeoutMs: number;
+  claudeCliEnabled: boolean;
+  claudeCliModel: string;
+  claudeCliTimeoutMs: number;
 }
 
 const DEFAULT_DEPS: GenerateDeps = {
   getCachedDay: defaultGetCachedDay,
   setRecommendation: defaultSetRecommendation,
   callDeepSeek: defaultCallDeepSeek,
+  callClaudeCli: defaultCallClaudeCli,
   now: () => new Date(),
   apiKey: DEEPSEEK_API_KEY,
   model: DEEPSEEK_MODEL,
   thinking: DEEPSEEK_THINKING,
   timeoutMs: DEEPSEEK_TIMEOUT_MS,
+  claudeCliEnabled: RECOMMENDATION_CLI_ENABLED,
+  claudeCliModel: RECOMMENDATION_CLI_MODEL,
+  claudeCliTimeoutMs: RECOMMENDATION_CLI_TIMEOUT_MS,
 };
 
 function tomorrowDateWIB(now: Date): string {
@@ -248,8 +265,14 @@ export async function generateTomorrowRecommendation(
   deps: GenerateDeps = DEFAULT_DEPS,
   forDateOverride?: string,
 ): Promise<void> {
-  if (!deps.apiKey) {
-    console.warn("[recommendation] DEEPSEEK_API_KEY missing; skipping");
+  // Provider chain (meme-scraper Don pattern): Claude CLI (subscription,
+  // free) is the primary; DeepSeek (metered API) only the fallback. Each
+  // provider gets 2 attempts (call + validation failures both retry once).
+  const providers: ("claude-cli" | "deepseek")[] = [];
+  if (deps.claudeCliEnabled) providers.push("claude-cli");
+  if (deps.apiKey) providers.push("deepseek");
+  if (providers.length === 0) {
+    console.warn("[recommendation] no provider available (CLI disabled, no DEEPSEEK_API_KEY); skipping");
     return;
   }
 
@@ -262,63 +285,74 @@ export async function generateTomorrowRecommendation(
 
   const userPayload = buildUserPayload(forecast);
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    let result: DeepSeekResult;
-    try {
-      result = await deps.callDeepSeek({
-        apiKey: deps.apiKey,
-        model: deps.model,
-        systemPrompt: PACITAN_SURF_KNOWLEDGE,
-        userPayload,
-        thinking: deps.thinking,
-        timeoutMs: deps.timeoutMs,
+  for (const provider of providers) {
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      let content: unknown;
+      let modelUsed: string;
+      let tokensNote = "";
+      try {
+        if (provider === "claude-cli") {
+          const result = await deps.callClaudeCli({
+            model: deps.claudeCliModel,
+            systemPrompt: PACITAN_SURF_KNOWLEDGE,
+            userPayload,
+            timeoutMs: deps.claudeCliTimeoutMs,
+          });
+          content = result.content;
+          modelUsed = result.model ?? `claude-cli:${deps.claudeCliModel}`;
+        } else {
+          const result = await deps.callDeepSeek({
+            apiKey: deps.apiKey,
+            model: deps.model,
+            systemPrompt: PACITAN_SURF_KNOWLEDGE,
+            userPayload,
+            thinking: deps.thinking,
+            timeoutMs: deps.timeoutMs,
+          });
+          content = result.content;
+          modelUsed = deps.model;
+          tokensNote = ` (tokens used: ${result.usage.total_tokens})`;
+        }
+      } catch (err) {
+        // Call failures are often transient (CLI queueing, thinking overran
+        // max_tokens, network blip, 5xx) — retry once like validation
+        // failures. 2026-06-07: a single truncated response killed the whole
+        // night's rec because this path returned immediately. Final failure
+        // still preserves the cached rec.
+        console.error(`[recommendation] ${provider} attempt ${attempt} call failed:`, err);
+        continue;
+      }
+
+      const validation = validateRecommendation(content, {
+        candidates: userPayload.candidateWindows,
+        forecast,
       });
-    } catch (err) {
-      console.error(`[recommendation] attempt ${attempt} DeepSeek call failed:`, err);
-      // Call failures are often transient (thinking overran max_tokens, network
-      // blip, 5xx) — retry once like validation failures. 2026-06-07: a single
-      // truncated response killed the whole night's rec because this path
-      // returned immediately. Final failure still preserves the cached rec.
-      if (attempt === 2) {
-        console.error("[recommendation] giving up after 2 failed calls");
-        return;
+      if (!validation.ok) {
+        const picked = content as Record<string, unknown> | null;
+        console.warn(
+          `[recommendation] ${provider} attempt ${attempt} validation failed: ${validation.error}` +
+            ` (model picked ${String(picked?.bestSpot)} ${JSON.stringify(picked?.bestWindow ?? null).slice(0, 200)})`,
+        );
+        continue;
       }
-      continue;
+
+      const rec: Recommendation = {
+        forDate,
+        generatedAt: deps.now().toISOString(),
+        bestSpot: validation.value.bestSpot,
+        bestWindow: validation.value.bestWindow,
+        headline: validation.value.headline,
+        reasoning: validation.value.reasoning,
+        warnings: validation.value.warnings,
+        ...(validation.value.overrideReason ? { overrideReason: validation.value.overrideReason } : {}),
+        modelUsed,
+      };
+
+      await deps.setRecommendation(rec);
+      console.log(`[recommendation] wrote rec for ${forDate} via ${provider}${tokensNote}`);
+      return;
     }
-
-    const validation = validateRecommendation(result.content, {
-      candidates: userPayload.candidateWindows,
-      forecast,
-    });
-    if (!validation.ok) {
-      const picked = result.content as Record<string, unknown> | null;
-      console.warn(
-        `[recommendation] attempt ${attempt} validation failed: ${validation.error}` +
-          ` (model picked ${String(picked?.bestSpot)} ${JSON.stringify(picked?.bestWindow ?? null).slice(0, 200)})`,
-      );
-      if (attempt === 2) {
-        console.error("[recommendation] giving up after 2 failed validations");
-        return;
-      }
-      continue;
-    }
-
-    const rec: Recommendation = {
-      forDate,
-      generatedAt: deps.now().toISOString(),
-      bestSpot: validation.value.bestSpot,
-      bestWindow: validation.value.bestWindow,
-      headline: validation.value.headline,
-      reasoning: validation.value.reasoning,
-      warnings: validation.value.warnings,
-      ...(validation.value.overrideReason ? { overrideReason: validation.value.overrideReason } : {}),
-      modelUsed: deps.model,
-    };
-
-    await deps.setRecommendation(rec);
-    console.log(
-      `[recommendation] wrote rec for ${forDate} (tokens used: ${result.usage.total_tokens})`,
-    );
-    return;
+    console.error(`[recommendation] ${provider} exhausted (2 attempts)${provider === "claude-cli" && providers.includes("deepseek") ? "; falling back to deepseek" : ""}`);
   }
+  console.error("[recommendation] all providers failed; keeping existing cached rec");
 }

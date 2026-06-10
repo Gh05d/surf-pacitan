@@ -180,12 +180,25 @@ export const DEEPSEEK_THINKING = process.env.DEEPSEEK_THINKING !== "false";
 // up to ~90s worst case with the 8k budget).
 export const DEEPSEEK_TIMEOUT_MS = 120_000;
 
-// Enabled when an API key is set, unless explicitly RECOMMENDATION_ENABLED=false.
-// An explicit "true" without a key is still disabled — the feature cannot work
-// without a key, and reporting enabled:true with a forever-null recommendation
-// was a misconfiguration trap.
+// Claude CLI (Max subscription, free) is the PRIMARY recommendation model —
+// mirrors the meme-scraper Don setup. DeepSeek (metered API) is only the
+// fallback when the CLI call fails or returns an invalid recommendation.
+// RECOMMENDATION_CLI="false" disables the CLI path (DeepSeek-only again).
+export const RECOMMENDATION_CLI_ENABLED = process.env.RECOMMENDATION_CLI !== "false";
+// CLI model alias ("sonnet"/"opus"/"fable"). Sonnet is plenty for this task
+// and light on the subscription usage windows.
+export const RECOMMENDATION_CLI_MODEL = process.env.RECOMMENDATION_CLI_MODEL ?? "sonnet";
+// One-shot, no tools — generous cap for queueing/slow generation.
+export const RECOMMENDATION_CLI_TIMEOUT_MS = 240_000;
+
+// Enabled when at least one provider is available (Claude CLI or DeepSeek
+// key), unless explicitly RECOMMENDATION_ENABLED=false. An explicit "true"
+// without any provider is still disabled — the feature cannot work, and
+// reporting enabled:true with a forever-null recommendation was a
+// misconfiguration trap.
 export const RECOMMENDATION_ENABLED =
-  DEEPSEEK_API_KEY !== "" && process.env.RECOMMENDATION_ENABLED !== "false";
+  process.env.RECOMMENDATION_ENABLED !== "false" &&
+  (RECOMMENDATION_CLI_ENABLED || DEEPSEEK_API_KEY !== "");
 
 // Recommendation cron fires at 20:00 Asia/Jakarta (WIB = UTC+7) → 13:00 UTC
 export const RECOMMENDATION_CRON_UTC_HOUR = 13;

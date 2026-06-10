@@ -420,11 +420,17 @@ function makeDeps(overrides: Partial<GenerateDeps> = {}): GenerateDeps {
       content: validModelResponse(),
       usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
     })),
+    callClaudeCli: mock(async () => ({ content: validModelResponse(), model: "claude-sonnet-4-6" })),
     now: () => frozenNow(),
     apiKey: "sk-test",
     model: "deepseek-v4-flash",
     thinking: true,
     timeoutMs: 5000,
+    // CLI disabled by default so the DeepSeek-path tests below stay valid;
+    // the provider-chain tests enable it explicitly.
+    claudeCliEnabled: false,
+    claudeCliModel: "sonnet",
+    claudeCliTimeoutMs: 5000,
     ...overrides,
   };
 }
@@ -510,11 +516,83 @@ describe("generateTomorrowRecommendation", () => {
     expect(setRecommendation).not.toHaveBeenCalled();
   });
 
-  test("skips when apiKey is empty (defensive)", async () => {
+  test("skips when no provider is available (CLI disabled, no apiKey)", async () => {
     const callDeepSeek = mock(async () => ({ content: {}, usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } }));
+    const callClaudeCli = mock(async () => ({ content: {}, model: null }));
     const setRecommendation = mock(async () => {});
-    await generateTomorrowRecommendation(makeDeps({ apiKey: "", callDeepSeek, setRecommendation }));
+    await generateTomorrowRecommendation(makeDeps({ apiKey: "", callDeepSeek, callClaudeCli, setRecommendation }));
     expect(callDeepSeek).not.toHaveBeenCalled();
+    expect(callClaudeCli).not.toHaveBeenCalled();
+    expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("Claude CLI is the primary: success means DeepSeek is never called", async () => {
+    const captured: Recommendation[] = [];
+    const setRecommendation = mock(async (rec: Recommendation) => { captured.push(rec); });
+    const callDeepSeek = mock(async () => ({
+      content: validModelResponse(),
+      usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+    }));
+    const callClaudeCli = mock(async () => ({ content: validModelResponse(), model: "claude-sonnet-4-6" }));
+    await generateTomorrowRecommendation(
+      makeDeps({ claudeCliEnabled: true, callClaudeCli, callDeepSeek, setRecommendation }),
+    );
+    expect(callClaudeCli).toHaveBeenCalledTimes(1);
+    expect(callDeepSeek).not.toHaveBeenCalled();
+    expect(captured).toHaveLength(1);
+    expect(captured[0].modelUsed).toBe("claude-sonnet-4-6");
+  });
+
+  test("falls back to DeepSeek after the CLI fails both attempts", async () => {
+    const captured: Recommendation[] = [];
+    const setRecommendation = mock(async (rec: Recommendation) => { captured.push(rec); });
+    const callClaudeCli = mock(async () => { throw new Error("claude CLI exited 1"); });
+    await generateTomorrowRecommendation(
+      makeDeps({ claudeCliEnabled: true, callClaudeCli, setRecommendation }),
+    );
+    expect(callClaudeCli).toHaveBeenCalledTimes(2);
+    expect(captured).toHaveLength(1);
+    expect(captured[0].modelUsed).toBe("deepseek-v4-flash");
+  });
+
+  test("falls back to DeepSeek when the CLI output fails validation twice", async () => {
+    const captured: Recommendation[] = [];
+    const setRecommendation = mock(async (rec: Recommendation) => { captured.push(rec); });
+    const callClaudeCli = mock(async () => ({ content: { bestSpot: "notARealSpot" }, model: "claude-sonnet-4-6" }));
+    await generateTomorrowRecommendation(
+      makeDeps({ claudeCliEnabled: true, callClaudeCli, setRecommendation }),
+    );
+    expect(callClaudeCli).toHaveBeenCalledTimes(2);
+    expect(captured).toHaveLength(1);
+    expect(captured[0].modelUsed).toBe("deepseek-v4-flash");
+  });
+
+  test("CLI-only setup works without a DeepSeek key", async () => {
+    const captured: Recommendation[] = [];
+    const setRecommendation = mock(async (rec: Recommendation) => { captured.push(rec); });
+    const callDeepSeek = mock(async () => ({
+      content: validModelResponse(),
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    }));
+    const callClaudeCli = mock(async () => ({ content: validModelResponse(), model: null }));
+    await generateTomorrowRecommendation(
+      makeDeps({ apiKey: "", claudeCliEnabled: true, callClaudeCli, callDeepSeek, setRecommendation }),
+    );
+    expect(callDeepSeek).not.toHaveBeenCalled();
+    expect(captured).toHaveLength(1);
+    // No envelope model reported → falls back to the alias label
+    expect(captured[0].modelUsed).toBe("claude-cli:sonnet");
+  });
+
+  test("does not write when CLI and DeepSeek both exhaust their attempts", async () => {
+    const setRecommendation = mock(async () => {});
+    const callClaudeCli = mock(async () => { throw new Error("cli down"); });
+    const callDeepSeek = mock(async () => { throw new Error("api down"); });
+    await generateTomorrowRecommendation(
+      makeDeps({ claudeCliEnabled: true, callClaudeCli, callDeepSeek, setRecommendation }),
+    );
+    expect(callClaudeCli).toHaveBeenCalledTimes(2);
+    expect(callDeepSeek).toHaveBeenCalledTimes(2);
     expect(setRecommendation).not.toHaveBeenCalled();
   });
 
