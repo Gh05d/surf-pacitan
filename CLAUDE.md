@@ -16,7 +16,7 @@ bun run start                    # production server
 
 Inspect live model output without Redis auth: `curl -s http://127.0.0.1:3100/api/forecast | python3 -c "import json,sys; d=json.load(sys.stdin); ..."`. Returns the same cached `ForecastDay` Redis holds.
 
-Manually trigger a recommendation generation (skip waiting for 20:00 WIB cron): from `/root/surf-pacitan/`, run `bun -e 'import("./src/server/recommendation.ts").then(m => m.generateTomorrowRecommendation()).then(() => process.exit(0))'` — uses `.env` via Bun's auto-load, writes to Redis on success. The explicit `process.exit` matters: the open Redis handle otherwise keeps the process alive forever after success.
+Manually trigger a recommendation generation (skip waiting for 20:00 WIB cron): from `/root/surf-pacitan/`, run `bun -e 'import("./src/server/recommendation.ts").then(m => m.generateTomorrowRecommendation()).then(() => process.exit(0))'` — uses `.env` via Bun's auto-load, writes to Redis on success. The explicit `process.exit` matters: the open Redis handle otherwise keeps the process alive forever after success. To backfill a **specific** date (after midnight WIB "tomorrow" has moved past a missed date), pass it explicitly: `m.generateTomorrowRecommendation(undefined, "YYYY-MM-DD")`.
 
 After `bun run build`, restart the service: `systemctl restart surf-pacitan.service`
 Frontend-only changes (CSS, components) don't need a service restart — nginx serves static files directly from `/var/www/surf-pacitan/`.
@@ -29,7 +29,9 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 **Cron schedule (`cron.ts`):** Tides fetched once daily (astronomical, don't change). Weather/swell fetched every 3h. On startup, tides run first, then weather merges into cached tide data. StormGlass free tier = 10 requests/day — used only for tides (3 req/day). **Every `systemctl restart` re-fetches tides on startup = 3 more StormGlass requests** — check restart count before repeated deploys (quota visible at `/api/status`). Swell from Open-Meteo Marine API, weather from Open-Meteo Weather API (both free, no quota).
 
-**StormGlass quota gotcha:** When quota is exceeded, the API may return HTTP 200 with `hours: []` (empty data) instead of 402. The code detects both cases and falls back to Open-Meteo.
+**StormGlass quota gotcha:** When quota is exceeded, the API may return HTTP 200 with an empty `data: []` array instead of 402. `fetchAndCacheTides` detects this and bails out keeping the existing tide cache (there is **no** Open-Meteo fallback for tides — a persistent StormGlass outage means the cached tide curve drifts ~50 min/day until the 4-day cache TTL expires). Remaining quota is read from the response `meta` and shown at `/api/status`.
+
+**StormGlass timestamp formats are endpoint-inconsistent (2026-06-10 fix):** the **extremes** endpoint returns UTC (`+00:00`) timestamps while **sea-level** echoes the request's `+07:00` offset back. Parsers must bucket by the **WIB-local** date via epoch math (`localDateStr(utcToLocal(...))` in `stormglass.ts`), never by the raw `time.slice(0, 10)` prefix — the prefix filter shifted every 00:00–06:59 WIB tide extreme one day early (phantom/missing morning H/L labels on the chart). Test fixtures use both real formats; keep it that way.
 
 **Open-Meteo Marine swell gotcha:** `swell_wave_*` is the **largest-amplitude** swell component, not the longest-period one. When a tall local windsea outranks a long-period Indian Ocean groundswell, the actual surf swell lands in `secondary_swell_wave_*`. `pickSurfSwell` in `open-meteo.ts` selects the surf-relevant component: secondary only if its height ≥ 0.3m AND ≥ 0.33× the primary's height AND its period ≥ 1.5× primary, else primary. The height-ratio gate (`SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO`) stops a tiny long-period sliver (e.g. 0.4m/16.8s) from hijacking a much larger primary groundswell (e.g. 2.1m/11s) and crushing the height rating to yellow/red (2026-05-29 fix). Verified via `scripts/verify-vs-wisuki.ts`.
 
@@ -58,7 +60,8 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - `DEEPSEEK_API_KEY` — DeepSeek API key (enables the daily AI recommendation card)
 - `DEEPSEEK_MODEL` — defaults to `deepseek-v4-flash`. Set to e.g. `deepseek-v4-pro` to use a stronger model.
 - `DEEPSEEK_THINKING` — `"false"` omits the `thinking` field from the request, but **V4 Flash reasons anyway** (reasoning_tokens appear regardless; verified 2026-06-07) — de facto a no-op.
-- `RECOMMENDATION_ENABLED` — `"false"` to disable the daily recommendation cron without removing the API key (e.g. when away from Pacitan). Default: enabled when `DEEPSEEK_API_KEY` is set.
+- `RECOMMENDATION_ENABLED` — `"false"` to disable the daily recommendation cron without removing the API key (e.g. when away from Pacitan). Default: enabled when `DEEPSEEK_API_KEY` is set. An explicit `"true"` without an API key stays **disabled** (the feature can't work keyless).
+- `REFRESH_TOKEN` — required by `POST /api/refresh` (header `X-Refresh-Token`); unset = endpoint disabled (401). Gate exists because the endpoint is publicly reachable and each call burns 3 of the 10 daily StormGlass requests. Value lives in `/root/surf-pacitan/.env`.
 
 ## Key Conventions
 
@@ -70,7 +73,9 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 - uPlot `scales.x.range` must be a **function** (`(u, min, max) => [min ?? def, max ?? def]`), not a static array `[a, b]` — uPlot wraps static arrays via `fnOrSelf` so `setScale()` calls are silently overridden on the next render.
 - Pinch-zoom on the tide chart lives **only inside `TideGraphModal`** (gated by `enableZoom` prop on `TideGraph`). The inline chart attaches no touch handlers — inline pinch conflicts with the App day-swipe and uPlot's drag handlers, and a 200px-tall chart is too small to pinch usefully. Tap the chart or `⤢ Zoom` button to open the modal.
 - Use relative imports (`../shared/types`, `./config`), not `@shared/*` path aliases — `bun test` doesn't resolve tsconfig paths.
-- StormGlass wind was **m/s** (conversion in `stormglass.ts`). Open-Meteo wind is already **km/h** — no conversion needed.
+- Open-Meteo wind is already **km/h** — no conversion needed (no wind parsing remains in `stormglass.ts`; only tides/astronomy come from StormGlass).
+- `tide.rising` is a **forward difference** (compares hour H against H+1): it describes the surf hour [H, H+1), so the hour right after a low reads rising and the hour after a high reads falling. The falling-tide cap and `risingShare` depend on this — don't revert to a backward diff (lags the tide turn by 1h).
+- The daylight gate is **minute-aware**: an hour is rated only if its center (H:30) lies between sunrise and sunset (≈ ≥30 min of light). Hour-granular gating erased the dusk session in Dec–Jan and rated a pitch-dark 05:00.
 - All StormGlass timestamps are UTC. Parsers convert to UTC+7 (Asia/Jakarta) for local time.
 - Shared types live in `src/shared/types.ts` — used by both server and client.
 - Per-spot UI metadata (label / abbreviation / emoji) lives in `src/shared/spots.ts` as `SPOT_DISPLAY`, ordered west-to-east. Use it for any spot-labeled UI; don't hardcode `"Pancer"`/`"🏖️"` etc. in components.

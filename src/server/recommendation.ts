@@ -85,52 +85,73 @@ export function validateRecommendation(raw: unknown, context?: ValidationContext
     if (typeof wn !== "string") return { ok: false, error: "warnings must be strings" };
     if (wn.length > 200) return { ok: false, error: "warning string too long (>200)" };
   }
+  // The prompt promises max 3 warnings; over-filling models get truncated
+  // rather than rejected (not worth burning the single retry on).
+  const warnings = (r.warnings as string[]).slice(0, 3);
 
-  // overrideReason: optional, <= 300 chars; whitespace-only counts as absent.
+  // overrideReason: optional, <= 300 chars AFTER trimming; whitespace-only
+  // counts as absent.
   let overrideReason: string | undefined;
   if (r.overrideReason !== undefined && r.overrideReason !== null) {
     if (typeof r.overrideReason !== "string") {
       return { ok: false, error: "overrideReason must be a string" };
     }
-    if (r.overrideReason.length > 300) {
+    const trimmed = r.overrideReason.trim();
+    if (trimmed.length > 300) {
       return { ok: false, error: "overrideReason too long (>300)" };
     }
-    overrideReason = r.overrideReason.trim() || undefined;
+    overrideReason = trimmed || undefined;
   }
 
   // Candidate discipline (see 2026-06-07 candidate-windows spec): with
   // candidates present, the pick must follow the top candidate (±1h) or
-  // justify the deviation; red hours are never allowed. Without context or
-  // candidates (legacy callers, fully red day) these checks are skipped.
+  // justify the deviation; red hours are never allowed. The window-sanity
+  // checks (hours exist, roughly daylight) apply whenever we have a forecast
+  // context — including the fully-red day, where the red floor necessarily
+  // can't apply but a 02:00–04:00 pick must still be rejected.
   let deviatesFromTop = false;
-  if (context && context.candidates.length > 0) {
+  if (context) {
     const ratingsByHour = new Map(context.forecast.hourly.map((h) => [h.hour, h.surfable]));
     // Hours overlapped by [start, end): end 08:00 doesn't touch hour 8, 08:01 does.
     const firstHour = Math.floor(startMin / 60);
     const lastHour = Math.ceil(endMin / 60) - 1;
     for (let h = firstHour; h <= lastHour; h += 1) {
-      const ratings = ratingsByHour.get(h);
-      if (!ratings) {
+      if (!ratingsByHour.has(h)) {
         return { ok: false, error: `bestWindow hour ${h} outside forecast hours` };
-      }
-      if (ratings[bestSpot] === "red") {
-        return { ok: false, error: `bestWindow contains red hour ${h} for ${bestSpot}` };
       }
     }
 
-    const top = context.candidates[0];
-    const topStart = parseHHMM(top.start);
-    const topEnd = parseHHMM(top.end);
-    const followsTop =
-      bestSpot === top.spot &&
-      topStart !== null &&
-      topEnd !== null &&
-      Math.abs(startMin - topStart) <= 60 &&
-      Math.abs(endMin - topEnd) <= 60;
-    if (!followsTop && !overrideReason) {
-      return { ok: false, error: "deviates from top candidate without overrideReason" };
+    const sunriseMin = parseHHMM(context.forecast.astronomy.sunrise);
+    const sunsetMin = parseHHMM(context.forecast.astronomy.sunset);
+    if (
+      sunriseMin !== null &&
+      sunsetMin !== null &&
+      (startMin < sunriseMin - 60 || endMin > sunsetMin + 60)
+    ) {
+      return { ok: false, error: "bestWindow outside daylight" };
     }
-    deviatesFromTop = !followsTop;
+
+    if (context.candidates.length > 0) {
+      for (let h = firstHour; h <= lastHour; h += 1) {
+        if (ratingsByHour.get(h)?.[bestSpot] === "red") {
+          return { ok: false, error: `bestWindow contains red hour ${h} for ${bestSpot}` };
+        }
+      }
+
+      const top = context.candidates[0];
+      const topStart = parseHHMM(top.start);
+      const topEnd = parseHHMM(top.end);
+      const followsTop =
+        bestSpot === top.spot &&
+        topStart !== null &&
+        topEnd !== null &&
+        Math.abs(startMin - topStart) <= 60 &&
+        Math.abs(endMin - topEnd) <= 60;
+      if (!followsTop && !overrideReason) {
+        return { ok: false, error: "deviates from top candidate without overrideReason" };
+      }
+      deviatesFromTop = !followsTop;
+    }
   }
 
   return {
@@ -140,7 +161,7 @@ export function validateRecommendation(raw: unknown, context?: ValidationContext
       bestWindow: { start: w.start, end: w.end },
       headline: r.headline,
       reasoning: r.reasoning,
-      warnings: r.warnings as string[],
+      warnings,
       // Only persist the reason when the pick actually deviates — models love
       // to over-fill optional fields, and the card renders this as "differs
       // from the top window".
@@ -220,13 +241,19 @@ function tomorrowDateWIB(now: Date): string {
   return `${y}-${mo}-${d}`;
 }
 
-export async function generateTomorrowRecommendation(deps: GenerateDeps = DEFAULT_DEPS): Promise<void> {
+// forDateOverride: generate for a specific date instead of "tomorrow (WIB)".
+// Needed for manual recovery — after midnight WIB, "tomorrow" has moved past
+// the missed date, so the default can never backfill it.
+export async function generateTomorrowRecommendation(
+  deps: GenerateDeps = DEFAULT_DEPS,
+  forDateOverride?: string,
+): Promise<void> {
   if (!deps.apiKey) {
     console.warn("[recommendation] DEEPSEEK_API_KEY missing; skipping");
     return;
   }
 
-  const forDate = tomorrowDateWIB(deps.now());
+  const forDate = forDateOverride ?? tomorrowDateWIB(deps.now());
   const forecast = await deps.getCachedDay(forDate);
   if (!forecast) {
     console.warn(`[recommendation] no cached forecast for ${forDate}; skipping`);

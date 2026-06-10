@@ -258,8 +258,8 @@ describe("computeSurfable — 2026-05-17 validation table", () => {
     };
   }
 
-  test("Pancer 05:00 tide 57% rising → green", () => {
-    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.pancer)).toBe("green");
+  test("Pancer 05:00 → red (hour center 05:30 before sunrise 05:41)", () => {
+    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.pancer)).toBe("red");
   });
   test("Pancer 06:00 tide 76% rising → yellow (above greenMax 60)", () => {
     expect(computeSurfable(input(6, 76, true), SPOT_THRESHOLDS.pancer)).toBe("yellow");
@@ -274,8 +274,8 @@ describe("computeSurfable — 2026-05-17 validation table", () => {
     expect(computeSurfable(input(9, 98, false), SPOT_THRESHOLDS.pancer)).toBe("red");
   });
 
-  test("Pancer Door 05:00 tide 57% rising → green", () => {
-    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.pancerDoor)).toBe("green");
+  test("Pancer Door 05:00 → red (hour center 05:30 before sunrise 05:41)", () => {
+    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.pancerDoor)).toBe("red");
   });
   test("Pancer Door 06:00 tide 76% rising → green", () => {
     expect(computeSurfable(input(6, 76, true), SPOT_THRESHOLDS.pancerDoor)).toBe("green");
@@ -293,8 +293,8 @@ describe("computeSurfable — 2026-05-17 validation table", () => {
     expect(computeSurfable(input(11, 67, false), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
   });
 
-  test("Teleng Ria 05:00 tide 57% rising → green", () => {
-    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.telengRia)).toBe("green");
+  test("Teleng Ria 05:00 → red (hour center 05:30 before sunrise 05:41)", () => {
+    expect(computeSurfable(input(5, 57, true), SPOT_THRESHOLDS.telengRia)).toBe("red");
   });
   test("Teleng Ria 07:00 tide 92% rising → yellow (above greenMax 90)", () => {
     expect(computeSurfable(input(7, 92, true), SPOT_THRESHOLDS.telengRia)).toBe("yellow");
@@ -314,6 +314,38 @@ describe("computeSurfable — 2026-05-17 validation table", () => {
 
   test("Falling-tide cap: green factors capped to yellow on falling tide", () => {
     expect(computeSurfable(input(10, 50, false), SPOT_THRESHOLDS.pancerDoor)).toBe("yellow");
+  });
+});
+
+describe("minute-aware daylight gate", () => {
+  // Hour counts as daylight when its CENTER (H:30) lies between sunrise and
+  // sunset — i.e. at least ~30 min of light in the hour.
+  function input(hour: number, sunrise: string, sunset: string) {
+    return {
+      hour,
+      tidePercent: 50,
+      tideRising: true,
+      swellHeight: 1.5,
+      swellPeriod: 11,
+      swellDirection: 210,
+      windSpeed: 6,
+      windDirection: 15,
+      sunrise,
+      sunset,
+    };
+  }
+
+  test("dusk hour counts when sunset is late enough (Dec: sunset 17:55 → hour 17 rated)", () => {
+    expect(computeSurfable(input(17, "05:41", "17:55"), SPOT_THRESHOLDS.pancerDoor)).not.toBe("red");
+  });
+  test("dusk hour excluded when sunset gives <30 min light (sunset 17:25 → hour 17 red)", () => {
+    expect(computeSurfable(input(17, "05:41", "17:25"), SPOT_THRESHOLDS.pancerDoor)).toBe("red");
+  });
+  test("dawn hour counts when sunrise is early enough (sunrise 05:25 → hour 5 rated)", () => {
+    expect(computeSurfable(input(5, "05:25", "17:25"), SPOT_THRESHOLDS.pancerDoor)).not.toBe("red");
+  });
+  test("dawn hour excluded when mostly dark (sunrise 05:46 → hour 5 red)", () => {
+    expect(computeSurfable(input(5, "05:46", "17:25"), SPOT_THRESHOLDS.pancerDoor)).toBe("red");
   });
 });
 
@@ -339,9 +371,9 @@ describe("computeAllSpotRatings — 2026-05-17 differentiation", () => {
     expect(result.telengRia).toBe("yellow");
   });
 
-  test("05:00 rising-tide morning works for everyone", () => {
+  test("06:00 rising-tide morning works for everyone", () => {
     const result = computeAllSpotRatings({
-      hour: 5,
+      hour: 6,
       tidePercent: 57,
       tideRising: true,
       swellHeight: 1.5,

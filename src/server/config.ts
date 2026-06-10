@@ -93,11 +93,15 @@ export interface SpotThresholds {
 export const SURFABLE_TELENG_RIA: SpotThresholds = {
   tide:        { greenMin: 50, greenMax: 90, yellowMin: 30, yellowMax: 100 },
   swellDir:    { ideal: 195, greenWindow: 15, yellowWindow: 30 },
-  // Lowest height threshold of the three on purpose: Teleng Ria is the bay's
-  // beginner / small-wave beach and breaks on small swell (verified 2026-05-29
-  // across surfindonesia/indonesiansurfguide/surf-atlas + local learn-to-surf
-  // pages, high confidence). The headland makes it tamer than the exposed east
-  // end, but it still works for learners on small days — do NOT raise this.
+  // Lowest height threshold of the three on purpose, but the reasoning is
+  // direction-dependent (Surf Atlas: "swells need some more energy to make a
+  // mark up this end of the bay, since the headland is there to cut off and
+  // temper the main SW dry season pulses"): SW swell arrives shadowed/smaller
+  // here — that attenuation is what makes it the tame beginner beach on a
+  // normal SW day — while direct S swell (~195°, its ideal) wraps in with
+  // little loss and works small. The low threshold covers the S-swell case;
+  // the narrow southerly direction window above already penalizes shadowed SW
+  // days, so don't ALSO raise this to model the shelter (double-counting).
   swellHeight: { greenMin: 0.4, yellowMin: 0.2 },
   swellPeriod: { greenMin: 7,   yellowMin: 5 },
   facingDirection: 195,
@@ -161,6 +165,11 @@ export const CACHE_TTL_SECONDS = 4 * 24 * 60 * 60; // 4 days
 export const DEFAULT_PORT = 3100;
 export const FORECAST_DAYS = 3;
 
+// POST /api/refresh is publicly reachable through nginx; each call burns 3 of
+// the 10 daily StormGlass requests. The endpoint requires the X-Refresh-Token
+// header to match this value; when unset, the endpoint is disabled (401).
+export const REFRESH_TOKEN = process.env.REFRESH_TOKEN ?? "";
+
 // DeepSeek / AI recommendation
 export const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 export const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY ?? "";
@@ -171,10 +180,12 @@ export const DEEPSEEK_THINKING = process.env.DEEPSEEK_THINKING !== "false";
 // up to ~90s worst case with the 8k budget).
 export const DEEPSEEK_TIMEOUT_MS = 120_000;
 
-// Enabled default: true when API key is set, unless explicitly RECOMMENDATION_ENABLED=false
+// Enabled when an API key is set, unless explicitly RECOMMENDATION_ENABLED=false.
+// An explicit "true" without a key is still disabled — the feature cannot work
+// without a key, and reporting enabled:true with a forever-null recommendation
+// was a misconfiguration trap.
 export const RECOMMENDATION_ENABLED =
-  process.env.RECOMMENDATION_ENABLED === "true" ||
-  (process.env.RECOMMENDATION_ENABLED !== "false" && DEEPSEEK_API_KEY !== "");
+  DEEPSEEK_API_KEY !== "" && process.env.RECOMMENDATION_ENABLED !== "false";
 
 // Recommendation cron fires at 20:00 Asia/Jakarta (WIB = UTC+7) → 13:00 UTC
 export const RECOMMENDATION_CRON_UTC_HOUR = 13;

@@ -7,7 +7,7 @@ This matches the local layout (confirmed by the user) and the geographic/satelli
 
 1. **Teleng Ria** (key: "telengRia") — westernmost spot
    - Faces ~195° (SSW)
-   - Sheltered by the western headland, which tempers the main SW dry-season swell → prefers more directly southern swell (ideal ~195°); needs a bit more size to break
+   - Sheltered by the western headland, which tempers the main SW dry-season swell → prefers more directly southern swell (ideal ~195°). Shelter is direction-dependent: SW swell arrives shadowed and smaller (needs more open-ocean size on SW days — which is also why it's the tame beginner beach on a normal SW day), while direct S swell wraps in with little loss and works at smaller sizes
    - Handles peak high tide best
 2. **Pancer Door** (key: "pancerDoor") — middle spot, long open beach
    - Faces ~195°

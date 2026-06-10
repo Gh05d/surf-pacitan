@@ -15,10 +15,17 @@ interface SurfableInput {
   sunset: string;
 }
 
+function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":");
+  return parseInt(h, 10) * 60 + parseInt(m, 10);
+}
+
+// An hour counts as daylight when its CENTER lies between sunrise and sunset
+// (≈ at least 30 min of light in [H, H+1)). Hour-granular truncation erased
+// the dusk session (sunset 17:55 → h17 red) while rating a pitch-dark 05:00.
 function isWithinDaylight(hour: number, sunrise: string, sunset: string): boolean {
-  const sunriseHour = parseInt(sunrise.split(":")[0], 10);
-  const sunsetHour = parseInt(sunset.split(":")[0], 10);
-  return hour >= sunriseHour && hour < sunsetHour;
+  const center = hour * 60 + 30;
+  return center >= hhmmToMinutes(sunrise) && center < hhmmToMinutes(sunset);
 }
 
 export type Quality = SurfableRating;

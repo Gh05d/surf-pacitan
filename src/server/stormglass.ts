@@ -30,12 +30,12 @@ function localDateStr(d: Date): string {
 // ---------------------------------------------------------------------------
 
 export function parseTideExtremes(raw: any, targetDate: string): TideExtreme[] {
+  // Bucket by LOCAL (WIB) date via epoch math — the extremes endpoint returns
+  // UTC timestamps while sea-level echoes the request's +07:00 offset, so a
+  // raw string-prefix compare puts every 00:00–06:59 WIB extreme on the wrong
+  // day. Epoch-based conversion is correct for both formats.
   return (raw.data as any[])
-    .filter((item) => {
-      // Filter by UTC date — API returns data for the requested UTC window
-      const utcDate = item.time.slice(0, 10);
-      return utcDate === targetDate;
-    })
+    .filter((item) => localDateStr(utcToLocal(item.time)) === targetDate)
     .map((item) => {
       const local = utcToLocal(item.time);
       return {
@@ -50,33 +50,44 @@ export function parseSeaLevels(
   raw: any,
   targetDate: string
 ): { hour: number; height: number; rising: boolean }[] {
-  // Build full indexed list for rising detection using adjacent entries
+  // Build full indexed list for rising detection using adjacent entries.
+  // Date bucketing uses epoch-based local conversion (NOT the raw timestamp
+  // prefix) so it works whether the API returns +00:00 or +07:00 timestamps.
   const all = (raw.data as any[]).map((item, i) => {
     const local = utcToLocal(item.time);
     return {
       idx: i,
       hour: local.getUTCHours(),
       height: item.sg as number,
-      utcDate: item.time.slice(0, 10),
+      localDate: localDateStr(local),
     };
   });
 
   return all
-    .filter((e) => e.utcDate === targetDate)
+    .filter((e) => e.localDate === targetDate)
     .map((e) => {
       const prev = all[e.idx - 1];
       const next = all[e.idx + 1];
-      // Rising if current is higher than previous; fall back to comparing with next if no prev
-      const rising = prev ? e.height > prev.height : next ? next.height > e.height : false;
+      // Forward difference: "rising" describes the surf hour [H, H+1), so it
+      // must compare against the NEXT sample — a backward diff lags the tide
+      // turn by up to 1h, capping the post-low push hour and un-capping the
+      // post-high drain hour. Fall back to backward diff at the series end.
+      const rising = next ? next.height > e.height : prev ? e.height > prev.height : false;
       return { hour: e.hour, height: e.height, rising };
     });
 }
 
-export function parseAstronomy(raw: any): AstronomyData {
-  const first = (raw.data as any[])[0];
+export function parseAstronomy(raw: any, targetDate?: string): AstronomyData {
+  const entries = raw.data as any[];
+  // Pick the entry whose sunrise falls on the target local date; the response
+  // covers the whole forecast range, so data[0] is only day 1's astronomy.
+  const match = targetDate
+    ? entries.find((e) => localDateStr(utcToLocal(e.sunrise)) === targetDate)
+    : undefined;
+  const entry = match ?? entries[0];
   return {
-    sunrise: toHHMM(utcToLocal(first.sunrise)),
-    sunset: toHHMM(utcToLocal(first.sunset)),
+    sunrise: toHHMM(utcToLocal(entry.sunrise)),
+    sunset: toHHMM(utcToLocal(entry.sunset)),
   };
 }
 

@@ -311,6 +311,62 @@ describe("validateRecommendation with candidate context", () => {
     if (result.ok) expect(result.value.overrideReason).toBeUndefined();
   });
 
+  test("fully-red day: window-sanity checks still apply (hours must exist)", () => {
+    // All hours red → empty candidate list. The red floor necessarily can't
+    // apply, but a pick outside the forecast hours must still be rejected.
+    const f = validationForecast();
+    f.hourly = f.hourly.map((h) => ({
+      ...h,
+      surfable: { telengRia: "red" as const, pancer: "red" as const, pancerDoor: "red" as const },
+    }));
+    const ctx = contextFor(f);
+    expect(ctx.candidates).toHaveLength(0);
+    const raw = { ...validRecRaw(), bestWindow: { start: "02:00", end: "04:00" } };
+    const result = validateRecommendation(raw, ctx);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("outside forecast");
+  });
+
+  test("fully-red day: night window is rejected even when those hours exist", () => {
+    const mkRed = (h: number) => ({
+      hour: h,
+      tide: { height: 0.5, rising: true },
+      swell: { height: 0.1, period: 4, direction: 200 },
+      wind: { speed: 40, direction: 195, gusts: 55 },
+      weather: { temp: 27, condition: "clear", precipitation: 0 },
+      surfable: { telengRia: "red" as const, pancer: "red" as const, pancerDoor: "red" as const },
+    });
+    const f = sampleForecast({ hourly: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(mkRed) });
+    const ctx = contextFor(f);
+    expect(ctx.candidates).toHaveLength(0);
+    // sunrise 05:30 → 02:00 start is way before daylight (−1h tolerance)
+    const raw = { ...validRecRaw(), bestWindow: { start: "02:00", end: "04:00" } };
+    const result = validateRecommendation(raw, ctx);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("daylight");
+  });
+
+  test("warnings beyond the promised max of 3 are truncated, not rejected", () => {
+    const raw = { ...validRecRaw(), warnings: ["a", "b", "c", "d", "e"] };
+    const result = validateRecommendation(raw);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.warnings).toEqual(["a", "b", "c"]);
+  });
+
+  test("overrideReason length limit applies AFTER trimming", () => {
+    const f = validationForecast();
+    const padded = "  " + "x".repeat(299) + "  "; // 303 raw, 299 trimmed
+    const raw = {
+      ...validRecRaw(),
+      bestSpot: "pancer",
+      bestWindow: { start: "09:00", end: "11:00" },
+      overrideReason: padded,
+    };
+    const result = validateRecommendation(raw, contextFor(f));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.overrideReason).toBe("x".repeat(299));
+  });
+
   test("red-hour floor beats the ±1h follows tolerance", () => {
     // pancerDoor green 06-07, RED 08 → top candidate 06:00-08:00. A +1h stretch
     // to 09:00 stays within followsTop tolerance but crosses the red hour 08 —
@@ -473,6 +529,16 @@ describe("generateTomorrowRecommendation", () => {
     await generateTomorrowRecommendation(makeDeps({ callDeepSeek, setRecommendation }));
     expect(callDeepSeek).toHaveBeenCalledTimes(2);
     expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("forDateOverride generates for the given date instead of tomorrow (manual recovery)", async () => {
+    const captured: Recommendation[] = [];
+    const getCachedDay = mock(async () => sampleForecast({ date: "2026-05-18" }));
+    const setRecommendation = mock(async (rec: Recommendation) => { captured.push(rec); });
+    await generateTomorrowRecommendation(makeDeps({ getCachedDay, setRecommendation }), "2026-05-18");
+    expect((getCachedDay as any).mock.calls[0][0]).toBe("2026-05-18");
+    expect(captured).toHaveLength(1);
+    expect(captured[0].forDate).toBe("2026-05-18");
   });
 
   test("persists overrideReason when the model justifies a deviation", async () => {

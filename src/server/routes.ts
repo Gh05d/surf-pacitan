@@ -9,7 +9,7 @@ import {
 } from "./cache";
 import { fetchAndCacheTides, fetchAndCacheWeather } from "./cron";
 import type { ForecastResponse, StatusResponse, RecommendationResponse } from "../shared/types";
-import { FORECAST_DAYS, RECOMMENDATION_ENABLED } from "./config";
+import { FORECAST_DAYS, RECOMMENDATION_ENABLED, REFRESH_TOKEN } from "./config";
 
 function todayWIB(): string {
   const now = new Date();
@@ -96,8 +96,13 @@ api.get("/recommendation", async (c) => {
   return c.json(body);
 });
 
-// POST /api/refresh — triggers a manual re-fetch
+// POST /api/refresh — triggers a manual re-fetch. Token-gated: the endpoint
+// is publicly reachable through nginx and each call costs 3 StormGlass
+// requests (of 10/day). Unset REFRESH_TOKEN disables the endpoint entirely.
 api.post("/refresh", async (c) => {
+  if (!REFRESH_TOKEN || c.req.header("x-refresh-token") !== REFRESH_TOKEN) {
+    return c.json({ ok: false, error: "unauthorized" }, 401);
+  }
   try {
     await fetchAndCacheTides();
     await fetchAndCacheWeather();

@@ -72,10 +72,27 @@ export async function fetchAndCacheTides(): Promise<void> {
     return;
   }
 
+  // Quota-exhausted responses come back HTTP 200 with empty data arrays —
+  // bail out and keep the existing cache instead of overwriting it with
+  // nothing (and instead of TypeError-ing in parseAstronomy).
+  if (!tidesRaw?.data?.length || !seaRaw?.data?.length || !astroRaw?.data?.length) {
+    console.error(
+      "[cron] fetchAndCacheTides: StormGlass returned empty data (quota exhausted?); keeping cached tides",
+    );
+    return;
+  }
+
+  const quotas = [tidesRaw, seaRaw, astroRaw]
+    .map((r) => extractQuota(r?.meta))
+    .filter((q): q is number => q != null);
+  if (quotas.length) {
+    await setQuotaRemaining(Math.min(...quotas));
+  }
+
   for (const date of dates) {
     const tideExtremes = parseTideExtremes(tidesRaw, date);
     const seaLevels = parseSeaLevels(seaRaw, date);
-    const astronomy = parseAstronomy(astroRaw);
+    const astronomy = parseAstronomy(astroRaw, date);
 
     // Build the daily min/max for tidePercent computation
     const heights = seaLevels.map((s) => s.height);
@@ -270,8 +287,18 @@ export function startScheduler(): void {
   );
 }
 
-function scheduleDailyRecommendation(): void {
-  const ms = nextFireMs(new Date(), RECOMMENDATION_CRON_UTC_HOUR, RECOMMENDATION_CRON_UTC_MINUTE);
+// refShiftMs is used by the re-arm path: shifting the reference past the fire
+// time guards against a marginally-early timer (clock step/NTP) re-arming for
+// "now" and running the job twice. The shift is added back to the delay so the
+// timer still fires at the real target time. Initial arming uses no shift so a
+// server start shortly before the target still catches today's run.
+function scheduleDailyRecommendation(refShiftMs = 0): void {
+  const ms =
+    nextFireMs(
+      new Date(Date.now() + refShiftMs),
+      RECOMMENDATION_CRON_UTC_HOUR,
+      RECOMMENDATION_CRON_UTC_MINUTE,
+    ) + refShiftMs;
   console.log(
     `[cron] next recommendation generation in ${Math.round(ms / 60000)} minutes`,
   );
@@ -279,21 +306,24 @@ function scheduleDailyRecommendation(): void {
     generateTomorrowRecommendation().catch((err) =>
       console.error("[cron] generateTomorrowRecommendation error:", err),
     );
-    scheduleDailyRecommendation();
+    scheduleDailyRecommendation(60_000);
   }, ms);
 }
 
-function scheduleMidnightTideFetch(): void {
-  const now = new Date();
+// refShiftMs: see scheduleDailyRecommendation — re-arm shifts the reference
+// past the fire time so an early-firing timer can't double-fetch (each fetch
+// costs 3 StormGlass requests); the delay still targets the real 17:00 UTC.
+function scheduleMidnightTideFetch(refShiftMs = 0): void {
+  const ref = new Date(Date.now() + refShiftMs);
   // Compute next 17:00 UTC (= 00:00 WIB)
-  const nextMidnight = new Date(now);
+  const nextMidnight = new Date(ref);
   nextMidnight.setUTCHours(17, 0, 0, 0);
-  if (nextMidnight.getTime() <= now.getTime()) {
+  if (nextMidnight.getTime() <= ref.getTime()) {
     // Already past 17:00 UTC today, schedule for tomorrow
     nextMidnight.setUTCDate(nextMidnight.getUTCDate() + 1);
   }
 
-  const msUntilMidnight = nextMidnight.getTime() - now.getTime();
+  const msUntilMidnight = nextMidnight.getTime() - Date.now();
   console.log(
     `[cron] next tide fetch scheduled in ${Math.round(msUntilMidnight / 60000)} minutes`
   );
@@ -303,6 +333,6 @@ function scheduleMidnightTideFetch(): void {
       console.error("[cron] midnight tide fetch error:", err)
     );
     // Chain next day
-    scheduleMidnightTideFetch();
+    scheduleMidnightTideFetch(60_000);
   }, msUntilMidnight);
 }
