@@ -18,6 +18,8 @@ Inspect live model output without Redis auth: `curl -s http://127.0.0.1:3100/api
 
 Manually trigger a recommendation generation (skip waiting for 20:00 WIB cron): from `/root/surf-pacitan/`, run `bun -e 'import("./src/server/recommendation.ts").then(m => m.generateTomorrowRecommendation()).then(() => process.exit(0))'` — uses `.env` via Bun's auto-load, writes to Redis on success. The explicit `process.exit` matters: the open Redis handle otherwise keeps the process alive forever after success. To backfill a **specific** date (after midnight WIB "tomorrow" has moved past a missed date), pass it explicitly: `m.generateTomorrowRecommendation(undefined, "YYYY-MM-DD")`.
 
+Pre-restart sanity check: `bun build src/server/index.ts --target bun --outdir /tmp/x` (then delete `/tmp/x`) — bundles the server entry and catches syntax/import errors in modules the tests never load (`cron.ts` is kept out of tests via the Redis rule). Booting the server instead would cost 3 StormGlass requests.
+
 After `bun run build`, restart the service: `systemctl restart surf-pacitan.service`
 Frontend-only changes (CSS, components) don't need a service restart — nginx serves static files directly from `/var/www/surf-pacitan/`.
 
@@ -27,7 +29,7 @@ Mobile-first tide forecast app for Pacitan surf spots. Hono API server fetches t
 
 **Data flow:** StormGlass API → parsers (`stormglass.ts`) → surfable rating computed (`surfable.ts`) → cached as `ForecastDay` JSON in Redis (`cache.ts`) → served via Hono endpoints (`routes.ts`) → React frontend renders tide graph + conditions.
 
-**Cron schedule (`cron.ts`):** Tides fetched once daily (astronomical, don't change). Weather/swell fetched every 3h. On startup, tides run first, then weather merges into cached tide data. StormGlass free tier = 10 requests/day — used only for tides (3 req/day). **Every `systemctl restart` re-fetches tides on startup = 3 more StormGlass requests** — check restart count before repeated deploys (quota visible at `/api/status`). Swell from Open-Meteo Marine API, weather from Open-Meteo Weather API (both free, no quota).
+**Cron schedule (`cron.ts`):** Tides fetched once daily (astronomical, don't change). Weather/swell fetched every 3h. On startup, tides run first, then weather merges into cached tide data. StormGlass free tier = 10 requests/day, reset at **UTC midnight** (07:00 WIB) — used only for tides (3 req/day). **Every `systemctl restart` re-fetches tides on startup = 3 more StormGlass requests**, and ad-hoc probes (curl tests, review agents) count against the same quota — check `stormglassQuota` at `/api/status` before restarting after probe-heavy sessions. Swell from Open-Meteo Marine API, weather from Open-Meteo Weather API (both free, no quota).
 
 **StormGlass quota gotcha:** When quota is exceeded, the API may return HTTP 200 with an empty `data: []` array instead of 402. `fetchAndCacheTides` detects this and bails out keeping the existing tide cache (there is **no** Open-Meteo fallback for tides — a persistent StormGlass outage means the cached tide curve drifts ~50 min/day until the 4-day cache TTL expires). Remaining quota is read from the response `meta` and shown at `/api/status`.
 
