@@ -1,6 +1,6 @@
 import type { SpotName } from "../../shared/types";
 import { SPOT_DISPLAY } from "../../shared/spots";
-import { SPOT_THRESHOLDS } from "../../shared/spot-config";
+import { SPOT_THRESHOLDS, type SpotThresholds } from "../../shared/spot-config";
 import { degreesToCompass } from "../../shared/surfable";
 import "./SpotInfoSheet.css";
 
@@ -13,7 +13,7 @@ interface SpotInfoSheetProps {
 // data the rating engine uses — so this sheet can never drift from the colors
 // on the chart. Only the `character` line is curated text (spots.ts).
 
-function tideLine(t: (typeof SPOT_THRESHOLDS)["pancer"]["tide"]): string {
+function tideLine(t: SpotThresholds["tide"]): string {
   const where =
     t.greenMax >= 90 ? "handles peak high tide" :
     t.greenMax >= 80 ? "tolerates fairly high tide" :

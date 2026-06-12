@@ -259,10 +259,10 @@ export function startScheduler(): void {
     );
   }, WEATHER_FETCH_INTERVAL_MS);
 
-  // Tides once daily at midnight local (UTC+7 = 17:00 UTC)
+  // Tides once daily at local midnight (region timezone)
   scheduleMidnightTideFetch();
 
-  // Daily recommendation generation (20:00 WIB = 13:00 UTC), only if enabled.
+  // Daily recommendation generation (20:00 local time), only if enabled.
   // RECOMMENDATION_ENABLED already requires at least one provider (Claude CLI
   // or DeepSeek key) — see config.ts.
   if (RECOMMENDATION_ENABLED) {
