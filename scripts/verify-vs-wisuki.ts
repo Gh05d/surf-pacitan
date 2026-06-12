@@ -140,16 +140,35 @@ async function main() {
 
   console.log(`Wisuki cells parsed: ${wisuki.length}`);
 
-  // Rating-bin classification used by surfable.ts (Teleng Ria thresholds —
-  // the strictest swell-direction window and most permissive period thresholds
-  // among the three spots, so this is the most-relevant single yardstick).
+  // Verification bins — deliberately the region's MOST PERMISSIVE thresholds
+  // per factor. The same bin function is applied to both sides of the
+  // comparison, so bins set sensitivity, not validity: permissive bins measure
+  // gross picker errors (windsea vs groundswell) instead of single-spot
+  // threshold noise. (2026-06-12: spots[0]-strict bins collapsed agreement
+  // 90% → 72.5% from boundary noise alone.)
+  const periodThresholds = {
+    yellowMin: Math.min(...ACTIVE_REGION.spots.map((s) => s.thresholds.swellPeriod.yellowMin)),
+    greenMin: Math.min(...ACTIVE_REGION.spots.map((s) => s.thresholds.swellPeriod.greenMin)),
+  };
+  const dirRef = ACTIVE_REGION.spots.reduce((widest, s) =>
+    s.thresholds.swellDir.yellowWindow > widest.thresholds.swellDir.yellowWindow ||
+    (s.thresholds.swellDir.yellowWindow === widest.thresholds.swellDir.yellowWindow &&
+      s.thresholds.swellDir.greenWindow >= widest.thresholds.swellDir.greenWindow)
+      ? s
+      : widest,
+  );
+  const dir = dirRef.thresholds.swellDir;
+  console.log(
+    `bins: period ${periodThresholds.yellowMin}/${periodThresholds.greenMin}, ` +
+      `dir ${dir.ideal} ±${dir.greenWindow}/±${dir.yellowWindow} (ref: ${dirRef.id})`,
+  );
+
   const periodBin = (p: number): "red" | "yellow" | "green" =>
-    p < 5 ? "red" : p < 7 ? "yellow" : "green";
+    p < periodThresholds.yellowMin ? "red" : p < periodThresholds.greenMin ? "yellow" : "green";
   const dirBin = (d: number): "red" | "yellow" | "green" => {
-    // Teleng Ria ideal 215°, green ±25°, yellow ±45°
-    const raw = Math.abs(d - 215) % 360;
+    const raw = Math.abs(d - dir.ideal) % 360;
     const off = raw > 180 ? 360 - raw : raw;
-    return off > 45 ? "red" : off <= 25 ? "green" : "yellow";
+    return off > dir.yellowWindow ? "red" : off <= dir.greenWindow ? "green" : "yellow";
   };
 
   let nDay = 0, dirOK = 0, perOK = 0, bothOK = 0, htOK = 0, ratingOK = 0;
@@ -170,7 +189,7 @@ async function main() {
     if (pOK) perOK++;
     if (hOK) htOK++;
     if (dOK && pOK) bothOK++;
-    // Surfable rating equivalence (Teleng Ria bins)
+    // Surfable rating equivalence (region most-permissive bins, see above)
     if (periodBin(cell.period) === periodBin(o.picked.period) &&
         dirBin(cell.direction)  === dirBin(o.picked.direction)) ratingOK++;
     if (!dOK || !pOK) disagree.push({
