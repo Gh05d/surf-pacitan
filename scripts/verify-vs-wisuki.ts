@@ -5,11 +5,20 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { pickSurfSwell } from "../src/server/open-meteo";
-import { LOCATION } from "../src/server/config";
+import { ACTIVE_REGION } from "../src/shared/active-region";
+
+const LOCATION = ACTIVE_REGION.location;
+const WISUKI_URL = ACTIVE_REGION.verifyWisukiUrl;
+if (!WISUKI_URL) {
+  console.error(
+    `region "${ACTIVE_REGION.id}" has no verifyWisukiUrl — add one to regions/${ACTIVE_REGION.id}/index.ts`,
+  );
+  process.exit(1);
+}
 
 const CACHE_DIR = "/tmp";
-const HTML_PATH = `${CACHE_DIR}/wisuki-pacitan.html`;
-const OM_PATH = `${CACHE_DIR}/verify-wisuki-om.json`;
+const HTML_PATH = `${CACHE_DIR}/wisuki-${ACTIVE_REGION.id}.html`;
+const OM_PATH = `${CACHE_DIR}/verify-wisuki-om-${ACTIVE_REGION.id}.json`;
 
 async function fetchWisukiHtml(): Promise<string> {
   if (existsSync(HTML_PATH)) {
@@ -17,7 +26,7 @@ async function fetchWisukiHtml(): Promise<string> {
     return readFileSync(HTML_PATH, "utf-8");
   }
   console.log("[fetch] wisuki html");
-  const resp = await fetch("https://wisuki.com/forecast/6041/pacitan", {
+  const resp = await fetch(WISUKI_URL, {
     headers: { "User-Agent": "Mozilla/5.0" },
   });
   if (!resp.ok) throw new Error(`Wisuki ${resp.status}`);
@@ -36,7 +45,7 @@ async function fetchOMNext(): Promise<any> {
     latitude: String(LOCATION.lat),
     longitude: String(LOCATION.lng),
     hourly: "swell_wave_height,swell_wave_period,swell_wave_direction,secondary_swell_wave_height,secondary_swell_wave_period,secondary_swell_wave_direction",
-    timezone: "Asia/Jakarta",
+    timezone: ACTIVE_REGION.timezone,
     forecast_days: "10",
   });
   const resp = await fetch(`https://marine-api.open-meteo.com/v1/marine?${params}`);
