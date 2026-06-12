@@ -29,6 +29,8 @@ function formatter(timeZone: string): Intl.DateTimeFormat {
   return f;
 }
 
+// Throws RangeError on a non-finite epoch (formatToParts rejects NaN) —
+// callers converting parsed timestamps must pre-validate Date.parse results.
 export function localParts(epochMs: number, timeZone: string): LocalParts {
   const parts = formatter(timeZone).formatToParts(epochMs);
   const get = (type: Intl.DateTimeFormatPartTypes) =>
@@ -74,8 +76,10 @@ export function tomorrowLocal(timeZone: string, now: Date = new Date()): string 
 }
 
 // Epoch (ms) of the wall-clock time `dateStr hour:minute` in `timeZone`.
-// Two-pass offset correction: a nonexistent local time (spring-forward gap)
-// resolves to the instant just after the jump — fine for cron scheduling.
+// Two-pass offset correction. Contract: callers pass REAL wall-clock times.
+// A nonexistent local time (DST spring-forward gap) resolves to an
+// UNSPECIFIED adjacent instant (before or after the jump, zone-dependent) —
+// acceptable for cron scheduling at 00:00/20:00, which never fall in a gap.
 export function epochForLocal(
   dateStr: string,
   hour: number,

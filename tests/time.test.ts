@@ -75,6 +75,13 @@ describe("epochForLocal", () => {
     expect(localDateStr(epoch, LISBON)).toBe("2026-10-25");
     expect(localHHMM(epoch, LISBON)).toBe("06:30");
   });
+
+  test("DST spring-forward gap time resolves to a finite instant on the same local date", () => {
+    // Lisbon 2026-03-29: 01:00–02:00 local does not exist.
+    const epoch = epochForLocal("2026-03-29", 1, 30, LISBON);
+    expect(Number.isFinite(epoch)).toBe(true);
+    expect(localDateStr(epoch, LISBON)).toBe("2026-03-29");
+  });
 });
 
 describe("nextLocalFireMs", () => {
