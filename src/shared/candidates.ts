@@ -113,15 +113,18 @@ function toCandidate(w: ScoredWindow, rank: number): CandidateWindow {
   };
 }
 
-export function computeCandidateWindows(forecast: ForecastDay): CandidateWindow[] {
+export function computeCandidateWindows(
+  forecast: ForecastDay,
+  spotOrder: readonly SpotName[] = SPOT_ORDER,
+): CandidateWindow[] {
   const winners: ScoredWindow[] = [];
-  for (const spot of SPOT_ORDER) {
+  for (const spot of spotOrder) {
     const best = bestWindowForSpot(forecast.hourly, spot);
     if (best) winners.push(best);
   }
-  // Deterministic on full ties: west-to-east spot order.
+  // Deterministic on full ties: pack order (west-to-east for Pacitan).
   winners.sort(
-    (a, b) => compareWindows(a, b) || SPOT_ORDER.indexOf(a.spot) - SPOT_ORDER.indexOf(b.spot),
+    (a, b) => compareWindows(a, b) || spotOrder.indexOf(a.spot) - spotOrder.indexOf(b.spot),
   );
   return winners.map((w, i) => toCandidate(w, i + 1));
 }
