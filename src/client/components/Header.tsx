@@ -1,3 +1,4 @@
+import { ACTIVE_REGION } from "../../shared/active-region";
 import "./Header.css";
 
 interface HeaderProps {
@@ -14,7 +15,7 @@ function formatLastFetch(iso: string | null): string {
 export function Header({ lastFetch, onRefresh }: HeaderProps) {
   return (
     <header className="header">
-      <h1>🏄 Surf Pacitan</h1>
+      <h1>🏄 {ACTIVE_REGION.branding.appTitle}</h1>
 
       <button
         onClick={onRefresh}

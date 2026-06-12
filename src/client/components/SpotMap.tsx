@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./SpotMap.css";
-import { SPOT_DISPLAY } from "../../shared/spots";
+import { ACTIVE_REGION } from "../../shared/active-region";
 import type { SpotName } from "../../shared/types";
 
 interface SpotMapProps {
@@ -19,18 +19,19 @@ function createSpotIcon(emoji: string) {
   });
 }
 
-// West-to-east along the bay (geography confirmed 2026-05-29): the westmost
-// point is Teleng Ria, the easternmost (Grindulu river mouth, ~111.10) is
-// Pancer. Earlier the eastern river-mouth marker was mislabeled "Pancer Door".
-const SPOTS = [
-  { key: "telengRia" as SpotName,  name: "Teleng Ria",  lat: -8.2230, lng: 111.0790, desc: "Mellow beachbreak, beginner friendly", emoji: SPOT_DISPLAY.find((s) => s.key === "telengRia")!.emoji },
-  { key: "pancerDoor" as SpotName, name: "Pancer Door", lat: -8.2215, lng: 111.0880, desc: "Long open beach break", emoji: SPOT_DISPLAY.find((s) => s.key === "pancerDoor")!.emoji },
-  { key: "pancer" as SpotName,     name: "Pancer",      lat: -8.2298, lng: 111.1026, desc: "River-mouth sandbar, left", emoji: SPOT_DISPLAY.find((s) => s.key === "pancer")!.emoji },
-];
+// Spot markers come from the active region pack, in pack order.
+const SPOTS = ACTIVE_REGION.spots.map((s) => ({
+  key: s.id as SpotName,
+  name: s.label,
+  lat: s.lat,
+  lng: s.lng,
+  desc: s.mapDesc,
+  emoji: s.emoji,
+}));
 
-const DEFAULT_CENTER: L.LatLngExpression = [-8.227, 111.088];
-const DEFAULT_ZOOM = 14;
-const FLY_TO_ZOOM = 15;
+const DEFAULT_CENTER: L.LatLngExpression = ACTIVE_REGION.map.center;
+const DEFAULT_ZOOM = ACTIVE_REGION.map.zoom;
+const FLY_TO_ZOOM = DEFAULT_ZOOM + 1;
 
 export function SpotMap({ onSpotInfo }: SpotMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);

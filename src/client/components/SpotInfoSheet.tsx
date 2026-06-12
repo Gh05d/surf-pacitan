@@ -31,7 +31,9 @@ export function SpotInfoSheet({ spot, onClose }: SpotInfoSheetProps) {
     `Swell direction: ideal ${degreesToCompass(t.swellDir.ideal)} (${t.swellDir.ideal}°), good within ±${t.swellDir.greenWindow}°, workable within ±${t.swellDir.yellowWindow}°.`,
     `Swell size: from ${t.swellHeight.greenMin} m at ${t.swellPeriod.greenMin}s+ period; below ${t.swellHeight.yellowMin} m or ${t.swellPeriod.yellowMin}s it won't break properly.`,
     `Wind: offshore fine up to ${t.wind.offshore.greenMax} km/h, cross-shore up to ${t.wind.crossShore.greenMax}, onshore only up to ${t.wind.onshore.greenMax}.`,
-    "Rising water is always better — falling tide caps any green hour to yellow.",
+    ...(t.fallingTideCap
+      ? ["Rising water is always better — falling tide caps any green hour to yellow."]
+      : []),
   ];
 
   return (
