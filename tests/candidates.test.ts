@@ -193,10 +193,10 @@ describe("variable spot count (region-packs)", () => {
       alpha: "green", bravo: "green", charlie: "green", delta: "red",
     };
     const forecast = mkForecast([8, 9, 10, 11], surfable);
-    const order = ["alpha", "bravo", "charlie", "delta"];
+    const order = ["charlie", "alpha", "bravo", "delta"];
     const candidates = computeCandidateWindows(forecast, order);
-    // alpha, bravo, charlie tie on every metric → resolved by spot order
-    expect(candidates.map((c) => c.spot)).toEqual(["alpha", "bravo", "charlie"]);
+    // charlie, alpha, bravo tie on every metric → resolved by injected order (not alphabetical)
+    expect(candidates.map((c) => c.spot)).toEqual(["charlie", "alpha", "bravo"]);
     expect(candidates.map((c) => c.rank)).toEqual([1, 2, 3]);
   });
 
