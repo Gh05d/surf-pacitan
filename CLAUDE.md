@@ -20,6 +20,10 @@ Manually trigger a recommendation generation (skip waiting for 20:00 WIB cron): 
 
 Pre-restart sanity check: `bun build src/server/index.ts --target bun --outdir /tmp/x` (then delete `/tmp/x`) — bundles the server entry and catches syntax/import errors in modules the tests never load (`cron.ts` is kept out of tests via the Redis rule). Booting the server instead would cost 3 StormGlass requests.
 
+**Verification builds go to /tmp:** `bunx vite build --outDir /tmp/vite-check` (then delete). A plain `bun run build` writes straight to `/var/www/surf-pacitan/` = an immediate live deploy (nginx serves it without restart) — never use it just to "check the build".
+
+Inspect/migrate Redis keys directly: `redis-cli -a "$(grep -oP '^REDIS_PASSWORD=\K.*' .env)" --no-auth-warning keys 'surf:pacitan:*'`
+
 **Region selection:** `REGION=<id>` (default `pacitan`) picks the active region pack for the server, `bun test`, and `bun run build`. `BUILD_OUT_DIR` overrides the build output dir (default `/var/www/surf-pacitan/`); `STATIC_ROOT` overrides where the server serves static files from (default `/var/www/surf-pacitan/`). For a second region, deploy a separate service+nginx vhost with `REGION`, `BUILD_OUT_DIR`, `STATIC_ROOT` set — see `regions/README.md`.
 
 After `bun run build`, restart the service: `systemctl restart surf-pacitan.service`
@@ -77,6 +81,7 @@ Mobile-first tide forecast app for surf spots, organized as **region packs** —
 
 ## Key Conventions
 
+- To read an old file version, use `git show <sha>:<path>` — never `git checkout <sha>` in this working dir (detaches HEAD; the repo is the live service's source).
 - No inline styles in React components — use co-located `.css` files with CSS nesting.
 - TideGraph canvas drawing code (`hooks.draw`) uses Canvas API, not React styles — don't try to extract those to CSS.
 - uPlot clips drawing to `u.bbox` — don't try to draw spot bands or labels outside the plot area via Canvas. Use HTML elements below the chart instead.
