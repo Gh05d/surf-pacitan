@@ -4,6 +4,7 @@ import { computeCandidateWindows } from "../src/server/candidates";
 import type { ForecastDay } from "../src/shared/types";
 import { buildSystemPrompt } from "../src/server/knowledge-base";
 import { PACITAN } from "../regions/pacitan";
+import { REGIONS } from "../regions";
 
 function sampleForecast(overrides: Partial<ForecastDay> = {}): ForecastDay {
   return {
@@ -658,5 +659,11 @@ describe("buildSystemPrompt (region-packs)", () => {
 
   test("throws for a region without registered knowledge", () => {
     expect(() => buildSystemPrompt({ ...PACITAN, id: "atlantis" })).toThrow(/no knowledge base/);
+  });
+
+  test("every registered region has a knowledge base (fails in CI, not at 20:00)", () => {
+    for (const region of Object.values(REGIONS)) {
+      expect(() => buildSystemPrompt(region)).not.toThrow();
+    }
   });
 });
