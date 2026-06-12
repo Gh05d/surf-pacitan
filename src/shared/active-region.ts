@@ -8,10 +8,11 @@ import { validateRegionConfig } from "./region";
 
 declare const __REGION__: string | undefined;
 
+const envRegion =
+  typeof process !== "undefined" ? process.env.REGION : undefined;
+
 const regionId =
-  typeof __REGION__ !== "undefined" && __REGION__
-    ? __REGION__
-    : (typeof process !== "undefined" ? process.env.REGION : undefined) ?? "pacitan";
+  (typeof __REGION__ !== "undefined" && __REGION__) || envRegion || "pacitan";
 
 export const ACTIVE_REGION = getRegion(regionId);
 

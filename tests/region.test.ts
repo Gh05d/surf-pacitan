@@ -154,6 +154,15 @@ describe("region registry", () => {
     for (const s of PACITAN.spots) expect(s.thresholds.fallingTideCap).toBe(true);
   });
 
+  test("empty REGION env resolves to the default (subprocess)", async () => {
+    const proc = Bun.spawn(
+      ["bun", "-e", 'import("./src/shared/active-region").then(m => console.log(m.ACTIVE_REGION.id))'],
+      { cwd: "/root/surf-pacitan", env: { ...process.env, REGION: "" }, stdout: "pipe" },
+    );
+    const out = await new Response(proc.stdout).text();
+    expect(out.trim()).toBe("pacitan");
+  });
+
   test("pacitan metadata matches the current deployment", () => {
     expect(PACITAN.timezone).toBe("Asia/Jakarta");
     expect(PACITAN.location).toEqual({ name: "Pacitan", lat: -8.22, lng: 111.13 });
