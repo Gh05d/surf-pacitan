@@ -28,6 +28,10 @@ export interface SpotThresholds {
     crossShore: WindDirectionThresholds;
     onshore:    WindDirectionThresholds;
   };
+  // Sandbar breaks need rising water: when true, a green hour on a falling
+  // tide is capped to yellow. Not universal — point/reef breaks elsewhere
+  // don't care, so this is per-spot config, not global logic.
+  fallingTideCap: boolean;
 }
 
 // Teleng Ria — WESTERN end of the bay, sheltered by the western headland that
@@ -55,6 +59,7 @@ export const SURFABLE_TELENG_RIA: SpotThresholds = {
     crossShore: { greenMax: 25, yellowMax: 35 },
     onshore:    { greenMax: 15, yellowMax: 25 },
   },
+  fallingTideCap: true,
 };
 
 // Pancer — EASTERN end of the bay, the Grindulu river-mouth sandbar and the
@@ -73,6 +78,7 @@ export const SURFABLE_PANCER: SpotThresholds = {
     crossShore: { greenMax: 20, yellowMax: 30 },
     onshore:    { greenMax: 10, yellowMax: 20 },
   },
+  fallingTideCap: true,
 };
 
 export const SURFABLE_PANCER_DOOR: SpotThresholds = {
@@ -86,6 +92,7 @@ export const SURFABLE_PANCER_DOOR: SpotThresholds = {
     crossShore: { greenMax: 20, yellowMax: 30 },
     onshore:    { greenMax: 10, yellowMax: 20 },
   },
+  fallingTideCap: true,
 };
 
 export const SURFABLE = SURFABLE_PANCER_DOOR;
