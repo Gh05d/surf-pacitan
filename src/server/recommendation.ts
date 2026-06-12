@@ -1,5 +1,7 @@
 import type { ForecastDay, SpotRatings, SpotName, TideExtreme } from "../shared/types";
 import { computeCandidateWindows, type CandidateWindow } from "./candidates";
+import { ACTIVE_REGION } from "../shared/active-region";
+import { tomorrowLocal } from "../shared/time";
 
 export interface PayloadHourly {
   hour: number;
@@ -19,7 +21,7 @@ export interface UserPayload {
   hourly: PayloadHourly[];
 }
 
-const VALID_SPOTS: SpotName[] = ["telengRia", "pancer", "pancerDoor"];
+const VALID_SPOTS: SpotName[] = ACTIVE_REGION.spots.map((s) => s.id);
 const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export interface ValidationContext {
@@ -194,7 +196,7 @@ export function buildUserPayload(forecast: ForecastDay): UserPayload {
 import { getCachedDay as defaultGetCachedDay, setRecommendation as defaultSetRecommendation } from "./cache";
 import { callDeepSeek as defaultCallDeepSeek, type DeepSeekResult } from "./deepseek";
 import { callClaudeCli as defaultCallClaudeCli, type ClaudeCliResult } from "./claude-cli";
-import { PACITAN_SURF_KNOWLEDGE } from "./knowledge-base";
+import { buildSystemPrompt } from "./knowledge-base";
 import {
   DEEPSEEK_API_KEY,
   DEEPSEEK_MODEL,
@@ -203,6 +205,7 @@ import {
   RECOMMENDATION_CLI_ENABLED,
   RECOMMENDATION_CLI_MODEL,
   RECOMMENDATION_CLI_TIMEOUT_MS,
+  TIMEZONE,
 } from "./config";
 import type { Recommendation } from "../shared/types";
 
@@ -248,16 +251,6 @@ const DEFAULT_DEPS: GenerateDeps = {
   claudeCliTimeoutMs: RECOMMENDATION_CLI_TIMEOUT_MS,
 };
 
-function tomorrowDateWIB(now: Date): string {
-  // WIB = UTC+7. "Tomorrow" = today-WIB + 1 day.
-  const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-  const tomorrow = new Date(wibNow.getTime() + 24 * 60 * 60 * 1000);
-  const y = tomorrow.getUTCFullYear();
-  const mo = String(tomorrow.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(tomorrow.getUTCDate()).padStart(2, "0");
-  return `${y}-${mo}-${d}`;
-}
-
 // forDateOverride: generate for a specific date instead of "tomorrow (WIB)".
 // Needed for manual recovery — after midnight WIB, "tomorrow" has moved past
 // the missed date, so the default can never backfill it.
@@ -276,7 +269,7 @@ export async function generateTomorrowRecommendation(
     return;
   }
 
-  const forDate = forDateOverride ?? tomorrowDateWIB(deps.now());
+  const forDate = forDateOverride ?? tomorrowLocal(TIMEZONE, deps.now());
   const forecast = await deps.getCachedDay(forDate);
   if (!forecast) {
     console.warn(`[recommendation] no cached forecast for ${forDate}; skipping`);
@@ -284,6 +277,7 @@ export async function generateTomorrowRecommendation(
   }
 
   const userPayload = buildUserPayload(forecast);
+  const systemPrompt = buildSystemPrompt();
 
   for (const provider of providers) {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
@@ -294,7 +288,7 @@ export async function generateTomorrowRecommendation(
         if (provider === "claude-cli") {
           const result = await deps.callClaudeCli({
             model: deps.claudeCliModel,
-            systemPrompt: PACITAN_SURF_KNOWLEDGE,
+            systemPrompt,
             userPayload,
             timeoutMs: deps.claudeCliTimeoutMs,
           });
@@ -304,7 +298,7 @@ export async function generateTomorrowRecommendation(
           const result = await deps.callDeepSeek({
             apiKey: deps.apiKey,
             model: deps.model,
-            systemPrompt: PACITAN_SURF_KNOWLEDGE,
+            systemPrompt,
             userPayload,
             thinking: deps.thinking,
             timeoutMs: deps.timeoutMs,

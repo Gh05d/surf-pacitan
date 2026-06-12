@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { computeSurfable, computeAllSpotRatings, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality, computeSwellHeightQuality, computeSwellPeriodQuality, computeWindQuality } from "../src/server/surfable";
+import { computeSurfable, computeAllSpotRatings, computeFactorBreakdown, getWindCategory, angularDistance, minQuality, computeTideQuality, computeSwellDirQuality, computeSwellHeightQuality, computeSwellPeriodQuality, computeWindQuality } from "../src/server/surfable";
+import type { SurfableInput } from "../src/server/surfable";
 import { SPOT_THRESHOLDS } from "../src/server/config";
 
 describe("getWindCategory", () => {
@@ -391,7 +392,6 @@ describe("computeAllSpotRatings — 2026-05-17 differentiation", () => {
 });
 
 import {
-  computeFactorBreakdown,
   describeLimitingFactor,
   degreesToCompass,
 } from "../src/shared/surfable";
@@ -510,5 +510,50 @@ describe("describeLimitingFactor", () => {
       "falling tide — sandbars need rising water",
     );
     expect(describeLimitingFactor("daylight", input, t)).toBe("dark — outside daylight");
+  });
+});
+
+describe("fallingTideCap flag (region-packs)", () => {
+  // Self-contained input builder — the existing `input()` helpers in this
+  // file are describe-block-scoped with differing arities; don't reuse them.
+  function mkInput(hour: number, tidePercent: number, tideRising: boolean): SurfableInput {
+    return {
+      hour, tidePercent, tideRising,
+      swellHeight: 1.5, swellPeriod: 12, swellDirection: 210,
+      windSpeed: 5, windDirection: 10, // light offshore
+      sunrise: "05:30", sunset: "17:30",
+    };
+  }
+
+  const capped = { ...SPOT_THRESHOLDS.pancerDoor, fallingTideCap: true };
+  const uncapped = { ...SPOT_THRESHOLDS.pancerDoor, fallingTideCap: false };
+
+  test("baseline: these inputs are green on a rising tide", () => {
+    expect(computeSurfable(mkInput(10, 50, true), capped)).toBe("green");
+  });
+
+  test("cap=true: would-be green on falling tide degrades to yellow", () => {
+    expect(computeSurfable(mkInput(10, 50, false), capped)).toBe("yellow");
+  });
+
+  test("cap=false: green survives a falling tide", () => {
+    expect(computeSurfable(mkInput(10, 50, false), uncapped)).toBe("green");
+  });
+
+  test("cap=false: breakdown has no fallingTide limiting factor", () => {
+    const b = computeFactorBreakdown(mkInput(10, 50, false), uncapped);
+    expect(b.final).toBe("green");
+    expect(b.limiting).toEqual([]);
+  });
+
+  test("default: rates every active-region spot", () => {
+    const ratings = computeAllSpotRatings(mkInput(10, 50, true));
+    expect(Object.keys(ratings).sort()).toEqual(["pancer", "pancerDoor", "telengRia"]);
+  });
+
+  test("custom spot list: rates exactly those spots", () => {
+    const spots = [{ id: "solo", thresholds: { ...SPOT_THRESHOLDS.pancer } }];
+    const ratings = computeAllSpotRatings(mkInput(10, 50, true), spots);
+    expect(Object.keys(ratings)).toEqual(["solo"]);
   });
 });

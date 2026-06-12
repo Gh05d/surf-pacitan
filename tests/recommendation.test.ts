@@ -2,6 +2,9 @@ import { describe, test, expect, mock } from "bun:test";
 import { buildUserPayload } from "../src/server/recommendation";
 import { computeCandidateWindows } from "../src/server/candidates";
 import type { ForecastDay } from "../src/shared/types";
+import { buildSystemPrompt } from "../src/server/knowledge-base";
+import { PACITAN } from "../regions/pacitan";
+import { REGIONS } from "../regions";
 
 function sampleForecast(overrides: Partial<ForecastDay> = {}): ForecastDay {
   return {
@@ -633,5 +636,34 @@ describe("generateTomorrowRecommendation", () => {
     await generateTomorrowRecommendation(makeDeps({ callDeepSeek, setRecommendation }));
     expect(captured).toHaveLength(1);
     expect(captured[0].overrideReason).toBe("wind stays 8 km/h at pancer while pancerDoor gusts 25");
+  });
+});
+
+describe("buildSystemPrompt (region-packs)", () => {
+  test("composes regional knowledge with generic scaffold", () => {
+    const prompt = buildSystemPrompt(PACITAN);
+    // Regional part present
+    expect(prompt).toContain("local Pacitan surf expert");
+    expect(prompt).toContain("Grindulu river mouth");
+    // Generic scaffold present
+    expect(prompt).toContain("# Anti-Hallucination");
+    expect(prompt).toContain("# Candidate Windows");
+    expect(prompt).toContain("# Output");
+  });
+
+  test("spot-id unions are generated from the pack", () => {
+    const prompt = buildSystemPrompt(PACITAN);
+    expect(prompt).toContain('"telengRia" | "pancerDoor" | "pancer"');
+    expect(prompt).not.toContain("yourSpotIdHere");
+  });
+
+  test("throws for a region without registered knowledge", () => {
+    expect(() => buildSystemPrompt({ ...PACITAN, id: "atlantis" })).toThrow(/no knowledge base/);
+  });
+
+  test("every registered region has a knowledge base (fails in CI, not at 20:00)", () => {
+    for (const region of Object.values(REGIONS)) {
+      expect(() => buildSystemPrompt(region)).not.toThrow();
+    }
   });
 });

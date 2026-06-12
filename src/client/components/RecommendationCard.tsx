@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { Recommendation } from "../../shared/types";
 import { SPOT_DISPLAY } from "../../shared/spots";
+import { todayLocal } from "../../shared/time";
+import { ACTIVE_REGION } from "../../shared/active-region";
 import "./RecommendationCard.css";
 
 interface RecommendationCardProps {
@@ -11,18 +13,10 @@ function findSpotDisplay(key: Recommendation["bestSpot"]) {
   return SPOT_DISPLAY.find((s) => s.key === key) ?? SPOT_DISPLAY[0];
 }
 
-// Asia/Jakarta local date — used to decide "today" vs "tomorrow" labelling.
-function todayWIB(): string {
-  const now = new Date();
-  const local = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-  const y = local.getUTCFullYear();
-  const mo = String(local.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(local.getUTCDate()).padStart(2, "0");
-  return `${y}-${mo}-${d}`;
-}
-
 function eyebrowFor(forDate: string): string {
-  return forDate === todayWIB() ? "🌅 Recommendation for today" : "🌅 Recommendation for tomorrow";
+  return forDate === todayLocal(ACTIVE_REGION.timezone)
+    ? "🌅 Recommendation for today"
+    : "🌅 Recommendation for tomorrow";
 }
 
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {

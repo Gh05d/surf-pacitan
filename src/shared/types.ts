@@ -34,7 +34,10 @@ export interface AstronomyData {
 
 export type SurfableRating = "green" | "yellow" | "red";
 
-export type SpotName = "telengRia" | "pancer" | "pancerDoor";
+// Spot ids come from the active region pack (regions/<id>/index.ts) — no
+// longer a closed union. Validity is enforced at runtime (region validation,
+// validateRecommendation), not by the type system.
+export type SpotName = string;
 
 export type SpotRatings = Record<SpotName, SurfableRating>;
 

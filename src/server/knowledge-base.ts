@@ -1,41 +1,33 @@
-export const PACITAN_SURF_KNOWLEDGE = `
-You are a local Pacitan surf expert. You receive forecast data for exactly one day and must recommend the best surf window for that day.
+// Generic LLM prompt scaffold for the daily recommendation. Region expertise
+// (geography, local wind pattern, tide ranges) comes from the region pack's
+// knowledge-base file via the registry below; the input format, candidate
+// rules, task, anti-hallucination rules, and output schema are
+// region-independent and live here.
+import type { RegionConfig } from "../shared/region";
+import { ACTIVE_REGION } from "../shared/active-region";
+import { PACITAN_KNOWLEDGE } from "../../regions/pacitan/knowledge-base";
 
-# Spot Geography (west to east along the bay)
+// Server-only registry — keeps prompt text out of the client bundle (which is
+// why RegionConfig has no knowledgeBase field).
+const REGION_KNOWLEDGE: Record<string, string> = {
+  pacitan: PACITAN_KNOWLEDGE,
+};
 
-This matches the local layout (confirmed by the user) and the geographic/satellite evidence: standing on the beach facing the ocean, Teleng Ria is to the right (west), Pancer is to the left (east, at the Grindulu river mouth).
+export function buildSystemPrompt(region: RegionConfig = ACTIVE_REGION): string {
+  const regional = REGION_KNOWLEDGE[region.id];
+  if (!regional) {
+    throw new Error(
+      `no knowledge base registered for region "${region.id}" — add it to REGION_KNOWLEDGE in src/server/knowledge-base.ts`,
+    );
+  }
 
-1. **Teleng Ria** (key: "telengRia") — westernmost spot
-   - Faces ~195° (SSW)
-   - Sheltered by the western headland, which tempers the main SW dry-season swell → prefers more directly southern swell (ideal ~195°). Shelter is direction-dependent: SW swell arrives shadowed and smaller (needs more open-ocean size on SW days — which is also why it's the tame beginner beach on a normal SW day), while direct S swell wraps in with little loss and works at smaller sizes
-   - Handles peak high tide best
-2. **Pancer Door** (key: "pancerDoor") — middle spot, long open beach
-   - Faces ~195°
-   - Intermediate SW exposure → prefers SW swell (ideal ~210°)
-   - Tolerates higher tide than Pancer
-3. **Pancer** (key: "pancer") — easternmost spot, at the Grindulu river mouth. Sandbar is shaped by the river and shifts seasonally.
-   - Faces ~195°
-   - Most SW-exposed spot (nothing shadows the SW swell) → favours SW swell over a wide window (ideal ~215°)
-   - River-mouth sandbar drowns at high tide → works best at low-to-mid rising tide
+  const spotIdUnion = region.spots.map((s) => `"${s.id}"`).join(" | ");
+  const surfableShape = region.spots
+    .map((s, i) => (i === 0 ? `"${s.id}": "green"|"yellow"|"red"` : `"${s.id}": ...`))
+    .join(", ");
 
-# Sandbar Dynamics
-
-Sandbar spots need RISING water for shape. Falling tide → water pulls back, waves go mushy or close out, even with perfect swell and wind. A "green" rating on a falling tide should always be taken with a grain of salt.
-
-# Wind Interpretation
-
-- Offshore (wind from N/NE, away from the sea): blows waves hollow, keeps them clean. Best scenario.
-- Cross-shore (wind from E or W): acceptable up to ~25 km/h
-- Onshore (wind from S, toward the coast): blows waves flat / chaotic. Bad above ~15 km/h.
-
-Local pattern: mornings are often offshore (land-to-sea breeze), typically flipping to onshore between 10:00–13:00 (sea breeze). Early sessions are almost always cleaner.
-
-# Tide Range Context
-
-The \`tideRange\` field is the daily span (max − min in meters):
-- >2.5m → spring tide: wide usable window, but strong currents. May sweep sideways.
-- 1.5–2.5m → normal range, nothing unusual
-- <1.5m → neap tide: narrow window, less push, weaker waves — hard if the swell is also small.
+  return `
+${regional}
 
 # Input Data Format
 
@@ -46,11 +38,11 @@ You receive a JSON object:
   "tideRange": number,            // meters
   "astronomy": { "sunrise": "HH:MM", "sunset": "HH:MM" },
   "tideExtremes": [{ "time": "HH:MM", "height": m, "type": "high"|"low" }],
-  "candidateWindows": [{ "rank": 1, "spot": "telengRia"|"pancer"|"pancerDoor", "start": "HH:00", "end": "HH:00",
+  "candidateWindows": [{ "rank": 1, "spot": ${spotIdUnion}, "start": "HH:00", "end": "HH:00",
                          "ratings": "10g 11g", "greens": 2, "risingShare": 0..1, "meanWind": km/h }],
   "hourly": [{ "hour": 0-23, "tide": {height, rising}, "swell": {height, period, direction},
                "wind": {speed, direction, gusts}, "weather": {condition, precipitation},
-               "surfable": { "telengRia": "green"|"yellow"|"red", "pancer": ..., "pancerDoor": ... } }]
+               "surfable": { ${surfableShape} } }]
 }
 \`\`\`
 
@@ -83,7 +75,7 @@ Respond with EXACTLY this JSON schema (no extra fields, no markdown, no prose ou
 
 \`\`\`
 {
-  "bestSpot": "telengRia" | "pancer" | "pancerDoor",
+  "bestSpot": ${spotIdUnion},
   "bestWindow": { "start": "HH:MM", "end": "HH:MM" },
   "headline": "one short sentence in English, max 200 chars",
   "reasoning": "2–3 sentences in English explaining why this spot in this window, max 600 chars",
@@ -92,3 +84,4 @@ Respond with EXACTLY this JSON schema (no extra fields, no markdown, no prose ou
 }
 \`\`\`
 `.trim();
+}

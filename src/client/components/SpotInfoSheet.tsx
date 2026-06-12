@@ -1,6 +1,6 @@
 import type { SpotName } from "../../shared/types";
 import { SPOT_DISPLAY } from "../../shared/spots";
-import { SPOT_THRESHOLDS } from "../../shared/spot-config";
+import { SPOT_THRESHOLDS, type SpotThresholds } from "../../shared/spot-config";
 import { degreesToCompass } from "../../shared/surfable";
 import "./SpotInfoSheet.css";
 
@@ -13,7 +13,7 @@ interface SpotInfoSheetProps {
 // data the rating engine uses — so this sheet can never drift from the colors
 // on the chart. Only the `character` line is curated text (spots.ts).
 
-function tideLine(t: (typeof SPOT_THRESHOLDS)["pancer"]["tide"]): string {
+function tideLine(t: SpotThresholds["tide"]): string {
   const where =
     t.greenMax >= 90 ? "handles peak high tide" :
     t.greenMax >= 80 ? "tolerates fairly high tide" :
@@ -31,7 +31,9 @@ export function SpotInfoSheet({ spot, onClose }: SpotInfoSheetProps) {
     `Swell direction: ideal ${degreesToCompass(t.swellDir.ideal)} (${t.swellDir.ideal}°), good within ±${t.swellDir.greenWindow}°, workable within ±${t.swellDir.yellowWindow}°.`,
     `Swell size: from ${t.swellHeight.greenMin} m at ${t.swellPeriod.greenMin}s+ period; below ${t.swellHeight.yellowMin} m or ${t.swellPeriod.yellowMin}s it won't break properly.`,
     `Wind: offshore fine up to ${t.wind.offshore.greenMax} km/h, cross-shore up to ${t.wind.crossShore.greenMax}, onshore only up to ${t.wind.onshore.greenMax}.`,
-    "Rising water is always better — falling tide caps any green hour to yellow.",
+    ...(t.fallingTideCap
+      ? ["Rising water is always better — falling tide caps any green hour to yellow."]
+      : []),
   ];
 
   return (

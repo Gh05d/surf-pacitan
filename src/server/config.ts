@@ -1,10 +1,11 @@
-export const LOCATION = {
-  name: "Pacitan",
-  lat: -8.22,
-  lng: 111.13,
-} as const;
+import { ACTIVE_REGION } from "../shared/active-region";
 
-export const TIMEZONE = "Asia/Jakarta";
+// Region pack (selected via REGION env, default "pacitan") — see
+// regions/<id>/index.ts. These re-exports keep the established import
+// surface (and the tests' mock.module spread pattern) unchanged.
+export const REGION = ACTIVE_REGION;
+export const LOCATION = ACTIVE_REGION.location;
+export const TIMEZONE = ACTIVE_REGION.timezone;
 
 // StormGlass API
 export const STORMGLASS_BASE_URL = "https://api.stormglass.io/v2";
@@ -36,10 +37,10 @@ export const OPEN_METEO_MARINE_PARAMS = [
   "secondary_swell_wave_direction",
 ].join(",");
 
-// Open-Meteo weather model: best_match returns suspect wind direction at this
-// coastal point (NE 35° while every other model says E 85-130°). GFS aligns
-// with Wisuki/Surfline reference forecasts.
-export const OPEN_METEO_WEATHER_MODEL = "gfs_seamless";
+// Open-Meteo weather model — per-region: best_match can return suspect wind
+// at specific coastal points (Pacitan: NE 35° while every other model says
+// E 85-130°). Validate per region against a reference forecast.
+export const OPEN_METEO_WEATHER_MODEL = ACTIVE_REGION.weatherModel;
 
 // Prefer secondary swell over primary when secondary has meaningful height
 // AND is a SIGNIFICANTLY longer-period swell train. Both gates must hold:
@@ -47,15 +48,15 @@ export const OPEN_METEO_WEATHER_MODEL = "gfs_seamless";
 // remnants), and the period-ratio cutoff filters out wraparound cases where
 // secondary is only marginally longer and often points at a non-surf-relevant
 // direction (e.g. westerly wraparound around the headland).
-export const SURF_SWELL_SECONDARY_MIN_HEIGHT_M = 0.3;
-export const SURF_SWELL_SECONDARY_PERIOD_RATIO = 1.5;
+export const SURF_SWELL_SECONDARY_MIN_HEIGHT_M = ACTIVE_REGION.swellPicker.secondaryMinHeightM;
+export const SURF_SWELL_SECONDARY_PERIOD_RATIO = ACTIVE_REGION.swellPicker.secondaryPeriodRatio;
 // The secondary must also be a meaningful FRACTION of the primary's height to
 // win. Without this, a tiny long-period sliver (e.g. 0.4m / 16.8s) could
 // outrank a much larger primary groundswell (e.g. 2.1m / 11s) just by clearing
 // the absolute floor + period ratio, crushing the height rating to yellow/red.
 // 0.33 keeps genuine groundswell-behind-windsea cases (~0.42 ratio) while
 // rejecting marginal slivers. Verified via scripts/verify-vs-wisuki.ts.
-export const SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO = 0.33;
+export const SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO = ACTIVE_REGION.swellPicker.secondaryMinPrimaryRatio;
 
 // Surfable thresholds — moved to src/shared/spot-config.ts (2026-06-10) so
 // the client can render spot profiles and limiting factors from the same
@@ -65,12 +66,20 @@ export * from "../shared/spot-config";
 
 // Cron intervals
 export const WEATHER_FETCH_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
-export const TIDE_FETCH_HOUR = 0; // midnight local time
 
-// Redis
-export const REDIS_KEY_PREFIX = "surf:forecast:";
-export const REDIS_META_KEY = "surf:meta:last_fetch";
-export const REDIS_QUOTA_KEY = "surf:meta:stormglass_quota";
+// Cron times as LOCAL wall-clock times in REGION.timezone — converted to UTC
+// per-firing by nextLocalFireMs (DST-correct). Tides at local midnight;
+// recommendation at 20:00 local (read evening-of, plan tomorrow).
+export const TIDE_FETCH_LOCAL_HOUR = 0;
+export const RECOMMENDATION_LOCAL_HOUR = 20;
+export const RECOMMENDATION_LOCAL_MINUTE = 0;
+
+// Redis — region-scoped so a region switch on the same server can't serve
+// stale data from the previous region. (Old un-scoped surf:* keys from
+// pre-region deployments expire via TTL; see the deploy notes.)
+export const REDIS_KEY_PREFIX = `surf:${ACTIVE_REGION.id}:forecast:`;
+export const REDIS_META_KEY = `surf:${ACTIVE_REGION.id}:meta:last_fetch`;
+export const REDIS_QUOTA_KEY = `surf:${ACTIVE_REGION.id}:meta:stormglass_quota`;
 export const CACHE_TTL_SECONDS = 4 * 24 * 60 * 60; // 4 days
 
 // Server
@@ -112,10 +121,6 @@ export const RECOMMENDATION_ENABLED =
   process.env.RECOMMENDATION_ENABLED !== "false" &&
   (RECOMMENDATION_CLI_ENABLED || DEEPSEEK_API_KEY !== "");
 
-// Recommendation cron fires at 20:00 Asia/Jakarta (WIB = UTC+7) → 13:00 UTC
-export const RECOMMENDATION_CRON_UTC_HOUR = 13;
-export const RECOMMENDATION_CRON_UTC_MINUTE = 0;
-
 // Recommendation Redis storage
-export const REDIS_RECOMMENDATION_KEY_PREFIX = "surf:recommendation:";
+export const REDIS_RECOMMENDATION_KEY_PREFIX = `surf:${ACTIVE_REGION.id}:recommendation:`;
 export const RECOMMENDATION_TTL_SECONDS = 36 * 60 * 60; // 36h

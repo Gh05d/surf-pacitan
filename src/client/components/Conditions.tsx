@@ -1,4 +1,6 @@
 import type { SwellData, WindData } from "../../../shared/types";
+import { getWindCategory } from "../../shared/surfable";
+import { ACTIVE_REGION } from "../../shared/active-region";
 import "./Conditions.css";
 
 interface ConditionsProps {
@@ -12,15 +14,13 @@ function degToCompass(deg: number): string {
   return dirs[index];
 }
 
-// Pacitan beaches face south (~180°). Wind "direction" = where it comes FROM.
-// Offshore = from land (N) = good. Onshore = from sea (S) = bad.
+// Region-level wind label (the rating engine judges per-spot via thresholds;
+// this card is a single region-wide summary, so it uses the region's general
+// coast orientation).
 function windType(deg: number): { label: string; color: string } {
-  const d = ((deg % 360) + 360) % 360;
-  // Offshore: 315-45 (from N)
-  if (d >= 315 || d <= 45) return { label: "Offshore", color: "var(--green)" };
-  // Onshore: 135-225 (from S)
-  if (d >= 135 && d <= 225) return { label: "Onshore", color: "var(--red)" };
-  // Cross-shore: everything else
+  const cat = getWindCategory(deg, ACTIVE_REGION.coastFacingDirection);
+  if (cat === "offshore") return { label: "Offshore", color: "var(--green)" };
+  if (cat === "onshore") return { label: "Onshore", color: "var(--red)" };
   return { label: "Cross-shore", color: "var(--yellow)" };
 }
 

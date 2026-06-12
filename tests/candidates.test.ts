@@ -169,6 +169,45 @@ describe("computeCandidateWindows", () => {
 
 import { bestRemainingWindow } from "../src/shared/candidates";
 
+describe("variable spot count (region-packs)", () => {
+  // Self-contained forecast builder — independent of this file's other helpers.
+  function mkForecast(hours: number[], surfable: Record<string, SurfableRating>): ForecastDay {
+    return {
+      date: "2026-06-13",
+      location: { name: "Test", lat: 0, lng: 0 },
+      astronomy: { sunrise: "05:30", sunset: "17:30" },
+      tideExtremes: [],
+      hourly: hours.map((hour) => ({
+        hour,
+        tide: { height: 1, rising: true },
+        swell: { height: 1.5, period: 12, direction: 210 },
+        wind: { speed: 5, direction: 10, gusts: 8 },
+        weather: { temp: 28, condition: "clear", precipitation: 0 },
+        surfable: { ...surfable },
+      })),
+    };
+  }
+
+  test("ranks windows for a 4-spot order and respects tiebreak order", () => {
+    const surfable: Record<string, SurfableRating> = {
+      alpha: "green", bravo: "green", charlie: "green", delta: "red",
+    };
+    const forecast = mkForecast([8, 9, 10, 11], surfable);
+    const order = ["charlie", "alpha", "bravo", "delta"];
+    const candidates = computeCandidateWindows(forecast, order);
+    // charlie, alpha, bravo tie on every metric → resolved by injected order (not alphabetical)
+    expect(candidates.map((c) => c.spot)).toEqual(["charlie", "alpha", "bravo"]);
+    expect(candidates.map((c) => c.rank)).toEqual([1, 2, 3]);
+  });
+
+  test("single-spot order yields at most one candidate", () => {
+    const forecast = mkForecast([8, 9, 10], { solo: "green" });
+    const candidates = computeCandidateWindows(forecast, ["solo"]);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].spot).toBe("solo");
+  });
+});
+
 describe("bestRemainingWindow", () => {
   const day = () =>
     dayWith([

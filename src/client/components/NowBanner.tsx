@@ -13,7 +13,7 @@ function parseHHmm(hhmm: string): number {
 }
 
 // Today-only: the best remaining surf window from the current hour onwards.
-// Uses device time — the app's user is on-site in Pacitan (WIB), a deliberate
+// Uses device time — the app's user is on-site in the region, a deliberate
 // simplification.
 export function NowBanner({ day }: NowBannerProps) {
   const now = new Date();

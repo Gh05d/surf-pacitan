@@ -30,9 +30,10 @@ const MIN_RANGE = 60 * 60; // 1h minimum visible range
 
 const STRIP_HEIGHT = 24; // px per spot strip
 const STRIP_GAP = 2;     // px between strips
-const STRIP_BLOCK_HEIGHT = STRIP_HEIGHT * 3 + STRIP_GAP * 2; // 76px total
+const SPOT_COUNT = SPOT_DISPLAY.length;
+const STRIP_BLOCK_HEIGHT = STRIP_HEIGHT * SPOT_COUNT + STRIP_GAP * (SPOT_COUNT - 1);
 const STRIP_TOP_DIVIDER = 1; // px top separator line
-const STRIP_RESERVED = STRIP_BLOCK_HEIGHT + STRIP_TOP_DIVIDER; // 77px reserved
+const STRIP_RESERVED = STRIP_BLOCK_HEIGHT + STRIP_TOP_DIVIDER;
 const STRIP_LEFT_GUTTER = 22; // px for abbreviation labels (currently unused but reserved)
 
 function parseHHmm(hhmm: string): number {

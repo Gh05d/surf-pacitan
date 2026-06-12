@@ -5,11 +5,20 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { pickSurfSwell } from "../src/server/open-meteo";
-import { LOCATION } from "../src/server/config";
+import { ACTIVE_REGION } from "../src/shared/active-region";
+
+const LOCATION = ACTIVE_REGION.location;
+const WISUKI_URL = ACTIVE_REGION.verifyWisukiUrl;
+if (!WISUKI_URL) {
+  console.error(
+    `region "${ACTIVE_REGION.id}" has no verifyWisukiUrl — add one to regions/${ACTIVE_REGION.id}/index.ts`,
+  );
+  process.exit(1);
+}
 
 const CACHE_DIR = "/tmp";
-const HTML_PATH = `${CACHE_DIR}/wisuki-pacitan.html`;
-const OM_PATH = `${CACHE_DIR}/verify-wisuki-om.json`;
+const HTML_PATH = `${CACHE_DIR}/wisuki-${ACTIVE_REGION.id}.html`;
+const OM_PATH = `${CACHE_DIR}/verify-wisuki-om-${ACTIVE_REGION.id}.json`;
 
 async function fetchWisukiHtml(): Promise<string> {
   if (existsSync(HTML_PATH)) {
@@ -17,7 +26,7 @@ async function fetchWisukiHtml(): Promise<string> {
     return readFileSync(HTML_PATH, "utf-8");
   }
   console.log("[fetch] wisuki html");
-  const resp = await fetch("https://wisuki.com/forecast/6041/pacitan", {
+  const resp = await fetch(WISUKI_URL, {
     headers: { "User-Agent": "Mozilla/5.0" },
   });
   if (!resp.ok) throw new Error(`Wisuki ${resp.status}`);
@@ -36,7 +45,7 @@ async function fetchOMNext(): Promise<any> {
     latitude: String(LOCATION.lat),
     longitude: String(LOCATION.lng),
     hourly: "swell_wave_height,swell_wave_period,swell_wave_direction,secondary_swell_wave_height,secondary_swell_wave_period,secondary_swell_wave_direction",
-    timezone: "Asia/Jakarta",
+    timezone: ACTIVE_REGION.timezone,
     forecast_days: "10",
   });
   const resp = await fetch(`https://marine-api.open-meteo.com/v1/marine?${params}`);
@@ -108,7 +117,7 @@ function omIndexBy(om: any): Map<string, { picked: { height: number; period: num
   const h = om.hourly;
   const out = new Map<string, any>();
   for (let i = 0; i < h.time.length; i++) {
-    const t: string = h.time[i]; // YYYY-MM-DDTHH:MM in Asia/Jakarta
+    const t: string = h.time[i]; // YYYY-MM-DDTHH:MM in the region's local timezone
     const day = parseInt(t.slice(8, 10), 10);
     const hr = parseInt(t.slice(11, 13), 10);
     const picked = pickSurfSwell(
@@ -131,22 +140,41 @@ async function main() {
 
   console.log(`Wisuki cells parsed: ${wisuki.length}`);
 
-  // Rating-bin classification used by surfable.ts (Teleng Ria thresholds —
-  // the strictest swell-direction window and most permissive period thresholds
-  // among the three spots, so this is the most-relevant single yardstick).
+  // Verification bins — deliberately the region's MOST PERMISSIVE thresholds
+  // per factor. The same bin function is applied to both sides of the
+  // comparison, so bins set sensitivity, not validity: permissive bins measure
+  // gross picker errors (windsea vs groundswell) instead of single-spot
+  // threshold noise. (2026-06-12: spots[0]-strict bins collapsed agreement
+  // 90% → 72.5% from boundary noise alone.)
+  const periodThresholds = {
+    yellowMin: Math.min(...ACTIVE_REGION.spots.map((s) => s.thresholds.swellPeriod.yellowMin)),
+    greenMin: Math.min(...ACTIVE_REGION.spots.map((s) => s.thresholds.swellPeriod.greenMin)),
+  };
+  const dirRef = ACTIVE_REGION.spots.reduce((widest, s) =>
+    s.thresholds.swellDir.yellowWindow > widest.thresholds.swellDir.yellowWindow ||
+    (s.thresholds.swellDir.yellowWindow === widest.thresholds.swellDir.yellowWindow &&
+      s.thresholds.swellDir.greenWindow >= widest.thresholds.swellDir.greenWindow)
+      ? s
+      : widest,
+  );
+  const dir = dirRef.thresholds.swellDir;
+  console.log(
+    `bins: period ${periodThresholds.yellowMin}/${periodThresholds.greenMin}, ` +
+      `dir ${dir.ideal} ±${dir.greenWindow}/±${dir.yellowWindow} (ref: ${dirRef.id})`,
+  );
+
   const periodBin = (p: number): "red" | "yellow" | "green" =>
-    p < 5 ? "red" : p < 7 ? "yellow" : "green";
+    p < periodThresholds.yellowMin ? "red" : p < periodThresholds.greenMin ? "yellow" : "green";
   const dirBin = (d: number): "red" | "yellow" | "green" => {
-    // Teleng Ria ideal 215°, green ±25°, yellow ±45°
-    const raw = Math.abs(d - 215) % 360;
+    const raw = Math.abs(d - dir.ideal) % 360;
     const off = raw > 180 ? 360 - raw : raw;
-    return off > 45 ? "red" : off <= 25 ? "green" : "yellow";
+    return off > dir.yellowWindow ? "red" : off <= dir.greenWindow ? "green" : "yellow";
   };
 
   let nDay = 0, dirOK = 0, perOK = 0, bothOK = 0, htOK = 0, ratingOK = 0;
   const disagree: any[] = [];
   for (const cell of wisuki) {
-    if (cell.hour < 6 || cell.hour > 17) continue; // daylight WIB only
+    if (cell.hour < 6 || cell.hour > 17) continue; // daylight filter — tropical approximation (06-17 local); revisit for high-latitude regions
     const key = `${cell.dayNum}-${cell.hour}`;
     const o = omIdx.get(key);
     if (!o) continue;
@@ -161,7 +189,7 @@ async function main() {
     if (pOK) perOK++;
     if (hOK) htOK++;
     if (dOK && pOK) bothOK++;
-    // Surfable rating equivalence (Teleng Ria bins)
+    // Surfable rating equivalence (region most-permissive bins, see above)
     if (periodBin(cell.period) === periodBin(o.picked.period) &&
         dirBin(cell.direction)  === dirBin(o.picked.direction)) ratingOK++;
     if (!dOK || !pOK) disagree.push({
