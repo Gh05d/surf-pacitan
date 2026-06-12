@@ -1,6 +1,7 @@
 import type { SurfableRating, SpotRatings, ForecastDay, HourlyData } from "./types";
 import type { SpotThresholds } from "./spot-config";
-import { SURFABLE, SPOT_THRESHOLDS } from "./spot-config";
+import { ACTIVE_REGION } from "./active-region";
+import type { SpotDef } from "./region";
 
 export interface SurfableInput {
   hour: number;
@@ -101,7 +102,7 @@ export function computeWindQuality(
   return "yellow";
 }
 
-export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds = SURFABLE): Quality {
+export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds): Quality {
   if (!isWithinDaylight(input.hour, input.sunrise, input.sunset)) return "red";
 
   const tideQ      = computeTideQuality(input.tidePercent, thresholds.tide);
@@ -112,18 +113,20 @@ export function computeSurfable(input: SurfableInput, thresholds: SpotThresholds
 
   let final = minQuality([tideQ, swellDirQ, swellHQ, swellPQ, windQ]);
 
-  // Falling-tide cap: sandbar breaks need rising water — green degrades to yellow.
-  if (!input.tideRising && final === "green") final = "yellow";
+  // Falling-tide cap (per-spot flag): sandbar breaks need rising water —
+  // green degrades to yellow.
+  if (thresholds.fallingTideCap && !input.tideRising && final === "green") final = "yellow";
 
   return final;
 }
 
-export function computeAllSpotRatings(input: SurfableInput): SpotRatings {
-  return {
-    telengRia: computeSurfable(input, SPOT_THRESHOLDS.telengRia),
-    pancer: computeSurfable(input, SPOT_THRESHOLDS.pancer),
-    pancerDoor: computeSurfable(input, SPOT_THRESHOLDS.pancerDoor),
-  };
+export function computeAllSpotRatings(
+  input: SurfableInput,
+  spots: ReadonlyArray<Pick<SpotDef, "id" | "thresholds">> = ACTIVE_REGION.spots,
+): SpotRatings {
+  const ratings: SpotRatings = {};
+  for (const s of spots) ratings[s.id] = computeSurfable(input, s.thresholds);
+  return ratings;
 }
 
 export function computeTidePercent(
@@ -158,7 +161,7 @@ export interface FactorBreakdown {
 
 export function computeFactorBreakdown(
   input: SurfableInput,
-  thresholds: SpotThresholds = SURFABLE,
+  thresholds: SpotThresholds,
 ): FactorBreakdown {
   const windCategory = getWindCategory(input.windDirection, thresholds.facingDirection);
   const factors: Record<FactorName, Quality> = {
@@ -177,7 +180,7 @@ export function computeFactorBreakdown(
   const factorMin = minQuality(names.map((n) => factors[n]));
 
   if (factorMin === "green") {
-    if (!input.tideRising) {
+    if (thresholds.fallingTideCap && !input.tideRising) {
       return { final: "yellow", factors, limiting: ["fallingTide"], windCategory };
     }
     return { final: "green", factors, limiting: [], windCategory };
