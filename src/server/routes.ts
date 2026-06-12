@@ -9,42 +9,16 @@ import {
 } from "./cache";
 import { fetchAndCacheTides, fetchAndCacheWeather } from "./cron";
 import type { ForecastResponse, StatusResponse, RecommendationResponse } from "../shared/types";
-import { FORECAST_DAYS, RECOMMENDATION_ENABLED, REFRESH_TOKEN } from "./config";
-
-function todayWIB(): string {
-  const now = new Date();
-  const localNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-  const y = localNow.getUTCFullYear();
-  const mo = String(localNow.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(localNow.getUTCDate()).padStart(2, "0");
-  return `${y}-${mo}-${d}`;
-}
-
-function tomorrowWIB(): string {
-  const now = new Date();
-  const tomorrow = new Date(now.getTime() + (7 + 24) * 60 * 60 * 1000);
-  const y = tomorrow.getUTCFullYear();
-  const mo = String(tomorrow.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(tomorrow.getUTCDate()).padStart(2, "0");
-  return `${y}-${mo}-${d}`;
-}
+import { todayLocal, tomorrowLocal, addDays } from "../shared/time";
+import { FORECAST_DAYS, RECOMMENDATION_ENABLED, REFRESH_TOKEN, TIMEZONE } from "./config";
 
 const api = new Hono();
 
 // GET /api/forecast — returns next N days from cache
 api.get("/forecast", async (c) => {
-  const now = new Date();
-  // Use UTC+7 local date
-  const localNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-
+  const today = todayLocal(TIMEZONE);
   const dates: string[] = [];
-  for (let i = 0; i < FORECAST_DAYS; i++) {
-    const d = new Date(localNow.getTime() + i * 24 * 60 * 60 * 1000);
-    const y = d.getUTCFullYear();
-    const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const da = String(d.getUTCDate()).padStart(2, "0");
-    dates.push(`${y}-${mo}-${da}`);
-  }
+  for (let i = 0; i < FORECAST_DAYS; i++) dates.push(addDays(today, i));
 
   const cachedDays = await getCachedDays(dates);
   const lastFetch = await getLastFetch();
@@ -85,13 +59,13 @@ api.get("/status", async (c) => {
 });
 
 // GET /api/recommendation — daily AI surf recommendation, may be null
-// Prefer tomorrow's rec (generated ~20:00 WIB), fall back to today's after midnight.
+// Prefer tomorrow's rec (generated ~20:00 local), fall back to today's after midnight.
 api.get("/recommendation", async (c) => {
   if (!RECOMMENDATION_ENABLED) {
     const body: RecommendationResponse = { enabled: false, recommendation: null };
     return c.json(body);
   }
-  const rec = (await getRecommendation(tomorrowWIB())) ?? (await getRecommendation(todayWIB()));
+  const rec = (await getRecommendation(tomorrowLocal(TIMEZONE))) ?? (await getRecommendation(todayLocal(TIMEZONE)));
   const body: RecommendationResponse = { enabled: true, recommendation: rec };
   return c.json(body);
 });

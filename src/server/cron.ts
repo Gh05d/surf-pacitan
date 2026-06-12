@@ -11,12 +11,12 @@ import { fetchOpenMeteoWeather, parseOpenMeteoWeather, fetchOpenMeteoMarine, par
 import { setCachedDay, setLastFetch, setQuotaRemaining, getCachedDay } from "./cache";
 import { computeAllSpotRatings, computeTidePercent } from "./surfable";
 import { generateTomorrowRecommendation } from "./recommendation";
-import { nextFireMs } from "./schedule";
 import {
-  LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS,
+  LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS, TIMEZONE,
   RECOMMENDATION_ENABLED,
-  RECOMMENDATION_CRON_UTC_HOUR, RECOMMENDATION_CRON_UTC_MINUTE,
+  TIDE_FETCH_LOCAL_HOUR, RECOMMENDATION_LOCAL_HOUR, RECOMMENDATION_LOCAL_MINUTE,
 } from "./config";
+import { todayLocal, addDays, epochForLocal, nextLocalFireMs } from "../shared/time";
 import type { ForecastDay, HourlyData, SwellData, WindData, WeatherData } from "../shared/types";
 
 // ---------------------------------------------------------------------------
@@ -24,27 +24,15 @@ import type { ForecastDay, HourlyData, SwellData, WindData, WeatherData } from "
 // ---------------------------------------------------------------------------
 
 function getDateRange(): { start: string; end: string; dates: string[] } {
-  const now = new Date();
-  // Use local UTC+7 date as "today"
-  const localNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-
+  const today = todayLocal(TIMEZONE);
   const dates: string[] = [];
-  for (let i = 0; i < FORECAST_DAYS; i++) {
-    const d = new Date(localNow.getTime() + i * 24 * 60 * 60 * 1000);
-    const y = d.getUTCFullYear();
-    const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const da = String(d.getUTCDate()).padStart(2, "0");
-    dates.push(`${y}-${mo}-${da}`);
-  }
+  for (let i = 0; i < FORECAST_DAYS; i++) dates.push(addDays(today, i));
 
-  // start = beginning of first date in UTC
-  const start = `${dates[0]}T00:00:00+07:00`;
-  // end = end of last date in UTC+7 (next midnight)
-  const lastDate = new Date(localNow.getTime() + FORECAST_DAYS * 24 * 60 * 60 * 1000);
-  const ly = lastDate.getUTCFullYear();
-  const lmo = String(lastDate.getUTCMonth() + 1).padStart(2, "0");
-  const lda = String(lastDate.getUTCDate()).padStart(2, "0");
-  const end = `${ly}-${lmo}-${lda}T00:00:00+07:00`;
+  // Request window: local midnight of day 1 → local midnight after the last
+  // day, sent as UTC instants (StormGlass accepts ISO-8601; these are the
+  // same instants the old +07:00-suffixed strings encoded).
+  const start = new Date(epochForLocal(dates[0], 0, 0, TIMEZONE)).toISOString();
+  const end = new Date(epochForLocal(addDays(today, FORECAST_DAYS), 0, 0, TIMEZONE)).toISOString();
 
   return { start, end, dates };
 }
@@ -279,13 +267,13 @@ export function startScheduler(): void {
   // or DeepSeek key) — see config.ts.
   if (RECOMMENDATION_ENABLED) {
     scheduleDailyRecommendation();
-    console.log("[cron] recommendation cron registered (20:00 WIB)");
+    console.log(`[cron] recommendation cron registered (${RECOMMENDATION_LOCAL_HOUR}:00 ${TIMEZONE})`);
   } else {
     console.log("[cron] recommendation cron NOT registered (RECOMMENDATION_ENABLED=false or no provider)");
   }
 
   console.log(
-    `[cron] startScheduler: weather every ${WEATHER_FETCH_INTERVAL_MS / 3600000}h, tides daily at midnight WIB`
+    `[cron] startScheduler: weather every ${WEATHER_FETCH_INTERVAL_MS / 3600000}h, tides daily at midnight ${TIMEZONE}`
   );
 }
 
@@ -296,10 +284,11 @@ export function startScheduler(): void {
 // server start shortly before the target still catches today's run.
 function scheduleDailyRecommendation(refShiftMs = 0): void {
   const ms =
-    nextFireMs(
+    nextLocalFireMs(
       new Date(Date.now() + refShiftMs),
-      RECOMMENDATION_CRON_UTC_HOUR,
-      RECOMMENDATION_CRON_UTC_MINUTE,
+      RECOMMENDATION_LOCAL_HOUR,
+      RECOMMENDATION_LOCAL_MINUTE,
+      TIMEZONE,
     ) + refShiftMs;
   console.log(
     `[cron] next recommendation generation in ${Math.round(ms / 60000)} minutes`,
@@ -314,27 +303,20 @@ function scheduleDailyRecommendation(refShiftMs = 0): void {
 
 // refShiftMs: see scheduleDailyRecommendation — re-arm shifts the reference
 // past the fire time so an early-firing timer can't double-fetch (each fetch
-// costs 3 StormGlass requests); the delay still targets the real 17:00 UTC.
+// costs 3 StormGlass requests).
 function scheduleMidnightTideFetch(refShiftMs = 0): void {
-  const ref = new Date(Date.now() + refShiftMs);
-  // Compute next 17:00 UTC (= 00:00 WIB)
-  const nextMidnight = new Date(ref);
-  nextMidnight.setUTCHours(17, 0, 0, 0);
-  if (nextMidnight.getTime() <= ref.getTime()) {
-    // Already past 17:00 UTC today, schedule for tomorrow
-    nextMidnight.setUTCDate(nextMidnight.getUTCDate() + 1);
-  }
-
-  const msUntilMidnight = nextMidnight.getTime() - Date.now();
-  console.log(
-    `[cron] next tide fetch scheduled in ${Math.round(msUntilMidnight / 60000)} minutes`
-  );
-
+  const ms =
+    nextLocalFireMs(
+      new Date(Date.now() + refShiftMs),
+      TIDE_FETCH_LOCAL_HOUR,
+      0,
+      TIMEZONE,
+    ) + refShiftMs;
+  console.log(`[cron] next tide fetch scheduled in ${Math.round(ms / 60000)} minutes`);
   setTimeout(() => {
     fetchAndCacheTides().catch((err) =>
       console.error("[cron] midnight tide fetch error:", err)
     );
-    // Chain next day
     scheduleMidnightTideFetch(60_000);
-  }, msUntilMidnight);
+  }, ms);
 }
