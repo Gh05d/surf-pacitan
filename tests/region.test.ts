@@ -1,5 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import { validateRegionConfig, type RegionConfig } from "../src/shared/region";
+import { getRegion, REGIONS } from "../regions";
+import { PACITAN } from "../regions/pacitan";
+import { ACTIVE_REGION } from "../src/shared/active-region";
 
 function validRegion(): RegionConfig {
   return {
@@ -121,5 +124,44 @@ describe("validateRegionConfig", () => {
     expect(errors.some((e) => e.includes("facingDirection out of range"))).toBe(true);
     expect(errors.some((e) => e.includes("coastFacingDirection out of range"))).toBe(true);
     expect(errors.some((e) => e.includes("map.zoom"))).toBe(true);
+  });
+});
+
+describe("region registry", () => {
+  test("pacitan pack is registered and passes validation", () => {
+    expect(Object.keys(REGIONS)).toEqual(["pacitan"]);
+    expect(getRegion("pacitan")).toBe(PACITAN);
+    expect(validateRegionConfig(PACITAN)).toEqual([]);
+  });
+
+  test("unknown region throws with available ids", () => {
+    expect(() => getRegion("atlantis")).toThrow(/Unknown REGION "atlantis"/);
+    expect(() => getRegion("atlantis")).toThrow(/pacitan/);
+  });
+
+  test("ACTIVE_REGION defaults to pacitan (REGION env unset in tests)", () => {
+    expect(ACTIVE_REGION.id).toBe("pacitan");
+  });
+
+  test("pacitan spots are west-to-east with the established thresholds", () => {
+    expect(PACITAN.spots.map((s) => s.id)).toEqual(["telengRia", "pancerDoor", "pancer"]);
+    const pancer = PACITAN.spots.find((s) => s.id === "pancer")!;
+    expect(pancer.thresholds.tide).toEqual({ greenMin: 30, greenMax: 60, yellowMin: 15, yellowMax: 80 });
+    expect(pancer.thresholds.swellDir.ideal).toBe(215);
+    const telengRia = PACITAN.spots.find((s) => s.id === "telengRia")!;
+    expect(telengRia.thresholds.swellDir).toEqual({ ideal: 195, greenWindow: 15, yellowWindow: 30 });
+    expect(telengRia.thresholds.swellHeight.greenMin).toBe(0.4);
+    for (const s of PACITAN.spots) expect(s.thresholds.fallingTideCap).toBe(true);
+  });
+
+  test("pacitan metadata matches the current deployment", () => {
+    expect(PACITAN.timezone).toBe("Asia/Jakarta");
+    expect(PACITAN.location).toEqual({ name: "Pacitan", lat: -8.22, lng: 111.13 });
+    expect(PACITAN.weatherModel).toBe("gfs_seamless");
+    expect(PACITAN.swellPicker).toEqual({
+      secondaryMinHeightM: 0.3,
+      secondaryPeriodRatio: 1.5,
+      secondaryMinPrimaryRatio: 0.33,
+    });
   });
 });
