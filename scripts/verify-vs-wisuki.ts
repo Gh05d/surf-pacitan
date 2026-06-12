@@ -117,7 +117,7 @@ function omIndexBy(om: any): Map<string, { picked: { height: number; period: num
   const h = om.hourly;
   const out = new Map<string, any>();
   for (let i = 0; i < h.time.length; i++) {
-    const t: string = h.time[i]; // YYYY-MM-DDTHH:MM in Asia/Jakarta
+    const t: string = h.time[i]; // YYYY-MM-DDTHH:MM in the region's local timezone
     const day = parseInt(t.slice(8, 10), 10);
     const hr = parseInt(t.slice(11, 13), 10);
     const picked = pickSurfSwell(
@@ -155,7 +155,7 @@ async function main() {
   let nDay = 0, dirOK = 0, perOK = 0, bothOK = 0, htOK = 0, ratingOK = 0;
   const disagree: any[] = [];
   for (const cell of wisuki) {
-    if (cell.hour < 6 || cell.hour > 17) continue; // daylight WIB only
+    if (cell.hour < 6 || cell.hour > 17) continue; // daylight filter — tropical approximation (06-17 local); revisit for high-latitude regions
     const key = `${cell.dayNum}-${cell.hour}`;
     const o = omIdx.get(key);
     if (!o) continue;
