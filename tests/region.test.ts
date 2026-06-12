@@ -80,4 +80,46 @@ describe("validateRegionConfig", () => {
     const r = { ...validRegion(), id: "Test Land!" };
     expect(validateRegionConfig(r).some((e) => e.includes("invalid region id"))).toBe(true);
   });
+
+  test("rejects inverted swellDir/swellHeight/swellPeriod thresholds", () => {
+    const cases: [(r: RegionConfig) => void, string][] = [
+      [(r) => { r.spots[0].thresholds.swellDir = { ideal: 210, greenWindow: 45, yellowWindow: 25 }; }, "swellDir windows inverted"],
+      [(r) => { r.spots[0].thresholds.swellHeight = { greenMin: 0.3, yellowMin: 0.5 }; }, "swellHeight thresholds inverted"],
+      [(r) => { r.spots[0].thresholds.swellPeriod = { greenMin: 6, yellowMin: 8 }; }, "swellPeriod thresholds inverted"],
+    ];
+    for (const [mutate, expected] of cases) {
+      const r = validRegion();
+      mutate(r);
+      expect(validateRegionConfig(r).some((e) => e.includes(expected))).toBe(true);
+    }
+  });
+
+  test("missing threshold sub-objects yield readable errors, not a crash", () => {
+    const r = validRegion();
+    delete (r.spots[0].thresholds as any).tide;
+    delete (r.spots[0].thresholds as any).wind;
+    const errors = validateRegionConfig(r);
+    expect(errors).toContain("mainBreak: thresholds.tide missing");
+    expect(errors).toContain("mainBreak: thresholds.wind missing");
+  });
+
+  test("degenerate-but-legal zero-width yellow bands are valid", () => {
+    const r = validRegion();
+    r.spots[0].thresholds.swellDir = { ideal: 210, greenWindow: 25, yellowWindow: 25 };
+    r.spots[0].thresholds.tide = { greenMin: 20, greenMax: 100, yellowMin: 20, yellowMax: 100 };
+    expect(validateRegionConfig(r)).toEqual([]);
+  });
+
+  test("rejects out-of-range bearings and non-positive zoom", () => {
+    const r = validRegion();
+    r.spots[0].thresholds.swellDir = { ideal: 999, greenWindow: 25, yellowWindow: 45 };
+    (r.spots[0].thresholds as any).facingDirection = -50;
+    (r as any).coastFacingDirection = 400;
+    r.map = { center: [-8.0, 111.0], zoom: 0 };
+    const errors = validateRegionConfig(r);
+    expect(errors.some((e) => e.includes("swellDir.ideal out of range"))).toBe(true);
+    expect(errors.some((e) => e.includes("facingDirection out of range"))).toBe(true);
+    expect(errors.some((e) => e.includes("coastFacingDirection out of range"))).toBe(true);
+    expect(errors.some((e) => e.includes("map.zoom"))).toBe(true);
+  });
 });

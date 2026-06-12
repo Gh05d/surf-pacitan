@@ -45,6 +45,8 @@ export function validateRegionConfig(config: RegionConfig): string[] {
   if (!/^[a-z][a-z0-9-]*$/.test(config.id)) errors.push(`invalid region id: ${config.id}`);
   if (!config.branding?.appTitle) errors.push("branding.appTitle missing");
   if (!config.branding?.description) errors.push("branding.description missing");
+  if (!(config.coastFacingDirection >= 0 && config.coastFacingDirection <= 360)) errors.push("coastFacingDirection out of range 0-360");
+  if (!(Number.isFinite(config.map?.zoom) && config.map.zoom > 0)) errors.push("map.zoom must be a positive number");
   if (!config.spots?.length) errors.push("at least one spot required");
 
   try {
@@ -55,6 +57,9 @@ export function validateRegionConfig(config: RegionConfig): string[] {
 
   const ids = new Set<string>();
   for (const s of config.spots ?? []) {
+    // Spot ids are object keys / LLM-schema identifiers (camelCase, no
+    // hyphens); region ids are kebab-case Redis-namespace slugs — divergence
+    // is intentional.
     if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(s.id)) errors.push(`invalid spot id: ${s.id}`);
     if (ids.has(s.id)) errors.push(`duplicate spot id: ${s.id}`);
     ids.add(s.id);
@@ -65,6 +70,18 @@ export function validateRegionConfig(config: RegionConfig): string[] {
     if (!t) {
       errors.push(`${s.id}: thresholds missing`);
       continue;
+    }
+    const missingSub = (["tide", "swellDir", "swellHeight", "swellPeriod", "wind"] as const)
+      .filter((k) => !t[k]);
+    if (missingSub.length) {
+      errors.push(...missingSub.map((k) => `${s.id}: thresholds.${k} missing`));
+      continue;
+    }
+    if (!(t.swellDir.ideal >= 0 && t.swellDir.ideal <= 360)) {
+      errors.push(`${s.id}: swellDir.ideal out of range 0-360`);
+    }
+    if (!(t.facingDirection >= 0 && t.facingDirection <= 360)) {
+      errors.push(`${s.id}: facingDirection out of range 0-360`);
     }
     if (
       !(
