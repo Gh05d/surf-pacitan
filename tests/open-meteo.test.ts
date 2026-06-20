@@ -194,6 +194,55 @@ describe("parseOpenMeteoMarine", () => {
     expect(result[0].direction).toBe(209);
   });
 
+  // Regression: a tall SHORT-PERIOD windsea primary must not suppress a real
+  // groundswell secondary just because the secondary misses the 1.5× *relative*
+  // period gate. 2026-06-20 08:00 live values: the picker kept a 5.9s/152°
+  // windsea over a 8.5s/180° groundswell (8.5 / 5.9 = 1.44× < 1.5×), so the hour
+  // rated red (period+dir both red) while 09:00 — where the same groundswell's
+  // period crept to 9.15s and cleared the gate — rated yellow. Wisuki ground-truth
+  // saw a long-period SW groundswell at 07-10h, confirming the groundswell is the
+  // surf-relevant component. When the primary is a windsea (≤7s) and the secondary
+  // is a genuine groundswell (≥8s), the secondary wins regardless of the ratio.
+  test("prefers secondary groundswell when primary is a short-period windsea, below the 1.5× ratio", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-06-20T08:00"],
+        swell_wave_height: [1.44],
+        swell_wave_period: [5.9],          // windsea — short period
+        swell_wave_direction: [152],
+        secondary_swell_wave_height: [0.58],   // 0.58/1.44 = 0.40 → meaningful height
+        secondary_swell_wave_period: [8.5],    // 8.5/5.9 = 1.44× → below the 1.5× gate
+        secondary_swell_wave_direction: [180],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-06-20");
+    expect(result[0].height).toBeCloseTo(0.58, 2);
+    expect(result[0].period).toBeCloseTo(8.5, 2);
+    expect(result[0].direction).toBe(180);
+  });
+
+  // The windsea-fallback branch must NOT fire when the primary is itself a
+  // groundswell (period > windsea threshold). Mirrors the 1.5×-gate test below:
+  // primary 8.85s/191° is a real groundswell, secondary 11.3s/265° a westerly
+  // wraparound sliver — keep the primary.
+  test("keeps primary groundswell when primary period is above the windsea threshold", () => {
+    const raw = {
+      hourly: {
+        time: ["2026-05-25T07:00"],
+        swell_wave_height: [1.18],
+        swell_wave_period: [8.85],         // > 7s → primary is a groundswell, not windsea
+        swell_wave_direction: [191],
+        secondary_swell_wave_height: [0.50],
+        secondary_swell_wave_period: [11.3],   // 1.28× → below gate, windsea branch must not apply
+        secondary_swell_wave_direction: [265],
+      },
+    };
+    const result = parseOpenMeteoMarine(raw, "2026-05-25");
+    expect(result[0].height).toBe(1.18);
+    expect(result[0].period).toBe(8.85);
+    expect(result[0].direction).toBe(191);
+  });
+
   test("handles missing secondary fields gracefully (older response shape)", () => {
     const raw = {
       hourly: {

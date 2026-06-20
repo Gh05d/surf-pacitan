@@ -57,6 +57,16 @@ export const SURF_SWELL_SECONDARY_PERIOD_RATIO = ACTIVE_REGION.swellPicker.secon
 // 0.33 keeps genuine groundswell-behind-windsea cases (~0.42 ratio) while
 // rejecting marginal slivers. Verified via scripts/verify-vs-wisuki.ts.
 export const SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO = ACTIVE_REGION.swellPicker.secondaryMinPrimaryRatio;
+// Windsea-fallback escape for the relative period gate. secondaryPeriodRatio is
+// measured against the PRIMARY period — when the primary is a short-period
+// windsea (≤ windseaPeriodMax) the bar (windsea×1.5) over-rejects a real
+// groundswell secondary (e.g. 2026-06-20 08:00: 8.5s groundswell missed
+// 5.9×1.5=8.85s by 0.35s → kept a junky 5.9s/152° windsea → phantom red hour).
+// When the primary is a windsea and the secondary is a genuine groundswell
+// (≥ groundswellMinPeriod), the secondary wins regardless of the ratio. The
+// bands don't overlap so it never fires on near-equal-period pairs.
+export const SURF_SWELL_WINDSEA_PERIOD_MAX = ACTIVE_REGION.swellPicker.windseaPeriodMax;
+export const SURF_SWELL_GROUNDSWELL_MIN_PERIOD = ACTIVE_REGION.swellPicker.groundswellMinPeriod;
 
 // Surfable thresholds — moved to src/shared/spot-config.ts (2026-06-10) so
 // the client can render spot profiles and limiting factors from the same

@@ -26,6 +26,8 @@ export const PACITAN: RegionConfig = {
     secondaryMinHeightM: 0.3,
     secondaryPeriodRatio: 1.5,
     secondaryMinPrimaryRatio: 0.33,
+    windseaPeriodMax: 7,
+    groundswellMinPeriod: 8,
   },
   verifyWisukiUrl: "https://wisuki.com/forecast/6041/pacitan",
   spots: [

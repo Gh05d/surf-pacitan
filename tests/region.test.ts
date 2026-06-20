@@ -17,6 +17,8 @@ function validRegion(): RegionConfig {
       secondaryMinHeightM: 0.3,
       secondaryPeriodRatio: 1.5,
       secondaryMinPrimaryRatio: 0.33,
+      windseaPeriodMax: 7,
+      groundswellMinPeriod: 8,
     },
     spots: [
       {
@@ -171,6 +173,8 @@ describe("region registry", () => {
       secondaryMinHeightM: 0.3,
       secondaryPeriodRatio: 1.5,
       secondaryMinPrimaryRatio: 0.33,
+      windseaPeriodMax: 7,
+      groundswellMinPeriod: 8,
     });
   });
 });

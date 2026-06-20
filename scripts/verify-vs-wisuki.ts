@@ -113,13 +113,21 @@ function angularDiff(a: number, b: number): number {
   return raw > 180 ? 360 - raw : raw;
 }
 
-function omIndexBy(om: any): Map<string, { picked: { height: number; period: number; direction: number } }> {
+function omIndexBy(
+  om: any,
+): Map<string, { picked: { height: number; period: number; direction: number }; noData: boolean }> {
   const h = om.hourly;
   const out = new Map<string, any>();
   for (let i = 0; i < h.time.length; i++) {
     const t: string = h.time[i]; // YYYY-MM-DDTHH:MM in the region's local timezone
     const day = parseInt(t.slice(8, 10), 10);
     const hr = parseInt(t.slice(11, 13), 10);
+    // Beyond Open-Meteo's ~7-day marine horizon the swell arrays are null → a
+    // 0.00m "pick". Comparing that against Wisuki's real swell is meaningless
+    // and drags the agreement % down (4 such cells dropped 91.7% → 82.5% on
+    // 2026-06-20 data), so flag it for the loop to skip.
+    const rawH = h.swell_wave_height?.[i];
+    const noData = rawH == null || rawH === 0;
     const picked = pickSurfSwell(
       h.swell_wave_height?.[i] ?? 0,
       h.swell_wave_period?.[i] ?? 0,
@@ -128,7 +136,7 @@ function omIndexBy(om: any): Map<string, { picked: { height: number; period: num
       h.secondary_swell_wave_period?.[i],
       h.secondary_swell_wave_direction?.[i],
     );
-    out.set(`${day}-${hr}`, { picked });
+    out.set(`${day}-${hr}`, { picked, noData });
   }
   return out;
 }
@@ -171,13 +179,14 @@ async function main() {
     return off > dir.yellowWindow ? "red" : off <= dir.greenWindow ? "green" : "yellow";
   };
 
-  let nDay = 0, dirOK = 0, perOK = 0, bothOK = 0, htOK = 0, ratingOK = 0;
+  let nDay = 0, dirOK = 0, perOK = 0, bothOK = 0, htOK = 0, ratingOK = 0, skippedNoData = 0;
   const disagree: any[] = [];
   for (const cell of wisuki) {
     if (cell.hour < 6 || cell.hour > 17) continue; // daylight filter — tropical approximation (06-17 local); revisit for high-latitude regions
     const key = `${cell.dayNum}-${cell.hour}`;
     const o = omIdx.get(key);
     if (!o) continue;
+    if (o.noData) { skippedNoData++; continue; } // beyond OM marine horizon — no swell data to compare
     nDay++;
     const dDelta = angularDiff(cell.direction, o.picked.direction);
     const pDelta = Math.abs(cell.period - o.picked.period);
@@ -200,7 +209,10 @@ async function main() {
     });
   }
 
-  console.log(`\nDaylight 3h-cells compared: ${nDay}`);
+  console.log(
+    `\nDaylight 3h-cells compared: ${nDay}` +
+      (skippedNoData ? ` (${skippedNoData} skipped — beyond OM marine horizon)` : ""),
+  );
   console.log(`DIRECTION  (within 30°): ${((dirOK/nDay)*100).toFixed(1)}%  (${dirOK}/${nDay})`);
   console.log(`PERIOD     (within 3s):  ${((perOK/nDay)*100).toFixed(1)}%  (${perOK}/${nDay})`);
   console.log(`HEIGHT     (within 60%): ${((htOK/nDay)*100).toFixed(1)}%  (${htOK}/${nDay})`);

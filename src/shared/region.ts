@@ -32,6 +32,17 @@ export interface RegionConfig {
     secondaryMinHeightM: number;
     secondaryPeriodRatio: number;
     secondaryMinPrimaryRatio: number;
+    /**
+     * Windsea-fallback escape for the relative period gate. When the primary is a
+     * short-period windsea (period ≤ windseaPeriodMax) and the secondary is a
+     * genuine groundswell (period ≥ groundswellMinPeriod), prefer the secondary
+     * even if it misses secondaryPeriodRatio — the ratio is measured against the
+     * windsea's own short period and over-rejects real groundswells. The two
+     * bands must not overlap (windseaPeriodMax < groundswellMinPeriod) so this
+     * never fires on ambiguous near-equal-period pairs.
+     */
+    windseaPeriodMax: number;
+    groundswellMinPeriod: number;
   };
   /** Wisuki forecast URL for scripts/verify-vs-wisuki.ts. Optional. */
   verifyWisukiUrl?: string;

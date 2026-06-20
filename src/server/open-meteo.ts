@@ -8,6 +8,8 @@ import {
   SURF_SWELL_SECONDARY_MIN_HEIGHT_M,
   SURF_SWELL_SECONDARY_PERIOD_RATIO,
   SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO,
+  SURF_SWELL_WINDSEA_PERIOD_MAX,
+  SURF_SWELL_GROUNDSWELL_MIN_PERIOD,
   LOCATION,
   FORECAST_DAYS,
   TIMEZONE,
@@ -102,7 +104,15 @@ export function pickSurfSwell(
     secH != null && secP != null && secD != null &&
     secH >= SURF_SWELL_SECONDARY_MIN_HEIGHT_M &&
     secH >= primH * SURF_SWELL_SECONDARY_MIN_PRIMARY_RATIO &&
-    secP >= primP * SURF_SWELL_SECONDARY_PERIOD_RATIO
+    // Relative period gate, OR the windsea-fallback escape: a short-period
+    // windsea primary measures the 1.5× bar against its own short period, which
+    // over-rejects a real groundswell secondary. When the primary is a windsea
+    // and the secondary is a genuine groundswell (non-overlapping period bands),
+    // the secondary wins regardless of the ratio.
+    (
+      secP >= primP * SURF_SWELL_SECONDARY_PERIOD_RATIO ||
+      (primP <= SURF_SWELL_WINDSEA_PERIOD_MAX && secP >= SURF_SWELL_GROUNDSWELL_MIN_PERIOD)
+    )
   ) {
     return { height: secH, period: secP, direction: Math.round(secD) };
   }
