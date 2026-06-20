@@ -10,11 +10,12 @@ import {
 import { fetchOpenMeteoWeather, parseOpenMeteoWeather, fetchOpenMeteoMarine, parseOpenMeteoMarine } from "./open-meteo";
 import { setCachedDay, setLastFetch, setQuotaRemaining, getCachedDay } from "./cache";
 import { computeAllSpotRatings, computeTidePercent } from "./surfable";
-import { generateTomorrowRecommendation } from "./recommendation";
+import { generateTomorrowRecommendation, recheckTodayRecommendation } from "./recommendation";
 import {
   LOCATION, FORECAST_DAYS, WEATHER_FETCH_INTERVAL_MS, TIMEZONE,
   RECOMMENDATION_ENABLED,
   TIDE_FETCH_LOCAL_HOUR, RECOMMENDATION_LOCAL_HOUR, RECOMMENDATION_LOCAL_MINUTE,
+  RECOMMENDATION_RECHECK_LOCAL_HOUR,
 } from "./config";
 import { todayLocal, addDays, epochForLocal, nextLocalFireMs } from "../shared/time";
 import type { ForecastDay, HourlyData, SwellData, WindData, WeatherData } from "../shared/types";
@@ -267,7 +268,10 @@ export function startScheduler(): void {
   // or DeepSeek key) — see config.ts.
   if (RECOMMENDATION_ENABLED) {
     scheduleDailyRecommendation();
-    console.log(`[cron] recommendation cron registered (${RECOMMENDATION_LOCAL_HOUR}:00 ${TIMEZONE})`);
+    scheduleMorningRecheck();
+    console.log(
+      `[cron] recommendation cron registered (${RECOMMENDATION_LOCAL_HOUR}:00 + recheck ${RECOMMENDATION_RECHECK_LOCAL_HOUR}:00 ${TIMEZONE})`,
+    );
   } else {
     console.log("[cron] recommendation cron NOT registered (RECOMMENDATION_ENABLED=false or no provider)");
   }
@@ -298,6 +302,27 @@ function scheduleDailyRecommendation(refShiftMs = 0): void {
       console.error("[cron] generateTomorrowRecommendation error:", err),
     );
     scheduleDailyRecommendation(60_000);
+  }, ms);
+}
+
+// Morning recheck: re-fetch weather/swell (free Open-Meteo — NOT tides) so today
+// is freshly rated, then regenerate the rec only if its rating categories drifted.
+// refShiftMs guards against an early-firing timer double-running (see
+// scheduleDailyRecommendation).
+function scheduleMorningRecheck(refShiftMs = 0): void {
+  const ms =
+    nextLocalFireMs(
+      new Date(Date.now() + refShiftMs),
+      RECOMMENDATION_RECHECK_LOCAL_HOUR,
+      0,
+      TIMEZONE,
+    ) + refShiftMs;
+  console.log(`[cron] next recommendation recheck in ${Math.round(ms / 60000)} minutes`);
+  setTimeout(() => {
+    fetchAndCacheWeather()
+      .then(() => recheckTodayRecommendation())
+      .catch((err) => console.error("[cron] morning recheck error:", err));
+    scheduleMorningRecheck(60_000);
   }, ms);
 }
 
