@@ -395,7 +395,8 @@ describe("validateRecommendation with candidate context", () => {
   });
 });
 
-import { generateTomorrowRecommendation, type GenerateDeps } from "../src/server/recommendation";
+import { generateTomorrowRecommendation, recheckTodayRecommendation, type GenerateDeps } from "../src/server/recommendation";
+import { ratingSignature } from "../src/shared/rating-signature";
 import type { Recommendation } from "../src/shared/types";
 
 function frozenNow(): Date {
@@ -419,6 +420,9 @@ function makeDeps(overrides: Partial<GenerateDeps> = {}): GenerateDeps {
   return {
     getCachedDay: mock(async () => sampleForecast({ date: "2026-05-20" })),
     setRecommendation: mock(async () => {}),
+    getRecommendation: mock(async () => null),
+    getRatingSignature: mock(async () => null),
+    setRatingSignature: mock(async () => {}),
     callDeepSeek: mock(async () => ({
       content: validModelResponse(),
       usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
@@ -665,5 +669,73 @@ describe("buildSystemPrompt (region-packs)", () => {
     for (const region of Object.values(REGIONS)) {
       expect(() => buildSystemPrompt(region)).not.toThrow();
     }
+  });
+});
+
+describe("recheckTodayRecommendation", () => {
+  test("regenerates when no rec exists for today", async () => {
+    const setRecommendation = mock(async () => {});
+    await recheckTodayRecommendation(
+      makeDeps({ getRecommendation: mock(async () => null), setRecommendation }),
+    );
+    expect(setRecommendation).toHaveBeenCalledTimes(1);
+  });
+
+  test("does NOT regenerate when the rating signature is unchanged", async () => {
+    const forecast = sampleForecast({ date: "2026-05-20" });
+    const setRecommendation = mock(async () => {});
+    await recheckTodayRecommendation(
+      makeDeps({
+        getCachedDay: mock(async () => forecast),
+        getRecommendation: mock(async () => ({ forDate: "2026-05-19" }) as any),
+        getRatingSignature: mock(async () => ratingSignature(forecast)),
+        setRecommendation,
+      }),
+    );
+    expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("regenerates when the rating signature changed", async () => {
+    const forecast = sampleForecast({ date: "2026-05-20" });
+    const setRecommendation = mock(async () => {});
+    await recheckTodayRecommendation(
+      makeDeps({
+        getCachedDay: mock(async () => forecast),
+        getRecommendation: mock(async () => ({ forDate: "2026-05-19" }) as any),
+        getRatingSignature: mock(async () => "stale-signature"),
+        setRecommendation,
+      }),
+    );
+    expect(setRecommendation).toHaveBeenCalledTimes(1);
+  });
+
+  test("regenerates when the baseline signature is missing", async () => {
+    const forecast = sampleForecast({ date: "2026-05-20" });
+    const setRecommendation = mock(async () => {});
+    await recheckTodayRecommendation(
+      makeDeps({
+        getCachedDay: mock(async () => forecast),
+        getRecommendation: mock(async () => ({ forDate: "2026-05-19" }) as any),
+        getRatingSignature: mock(async () => null),
+        setRecommendation,
+      }),
+    );
+    expect(setRecommendation).toHaveBeenCalledTimes(1);
+  });
+
+  test("no-op when today's forecast is missing", async () => {
+    const setRecommendation = mock(async () => {});
+    await recheckTodayRecommendation(
+      makeDeps({ getCachedDay: mock(async () => null), setRecommendation }),
+    );
+    expect(setRecommendation).not.toHaveBeenCalled();
+  });
+
+  test("generateTomorrowRecommendation writes a baseline signature on success", async () => {
+    const setRatingSignature = mock(async () => {});
+    await generateTomorrowRecommendation(
+      makeDeps({ setRecommendation: mock(async () => {}), setRatingSignature }),
+    );
+    expect(setRatingSignature).toHaveBeenCalledTimes(1);
   });
 });

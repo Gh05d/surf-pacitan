@@ -1,7 +1,7 @@
 import type { ForecastDay, SpotRatings, SpotName, TideExtreme } from "../shared/types";
 import { computeCandidateWindows, type CandidateWindow } from "./candidates";
 import { ACTIVE_REGION } from "../shared/active-region";
-import { tomorrowLocal } from "../shared/time";
+import { tomorrowLocal, todayLocal } from "../shared/time";
 
 export interface PayloadHourly {
   hour: number;
@@ -193,7 +193,14 @@ export function buildUserPayload(forecast: ForecastDay): UserPayload {
   };
 }
 
-import { getCachedDay as defaultGetCachedDay, setRecommendation as defaultSetRecommendation } from "./cache";
+import {
+  getCachedDay as defaultGetCachedDay,
+  setRecommendation as defaultSetRecommendation,
+  getRecommendation as defaultGetRecommendation,
+  getRatingSignature as defaultGetRatingSignature,
+  setRatingSignature as defaultSetRatingSignature,
+} from "./cache";
+import { ratingSignature } from "../shared/rating-signature";
 import { callDeepSeek as defaultCallDeepSeek, type DeepSeekResult } from "./deepseek";
 import { callClaudeCli as defaultCallClaudeCli, type ClaudeCliResult } from "./claude-cli";
 import { buildSystemPrompt } from "./knowledge-base";
@@ -212,6 +219,9 @@ import type { Recommendation } from "../shared/types";
 export interface GenerateDeps {
   getCachedDay: typeof defaultGetCachedDay;
   setRecommendation: typeof defaultSetRecommendation;
+  getRecommendation: typeof defaultGetRecommendation;
+  getRatingSignature: typeof defaultGetRatingSignature;
+  setRatingSignature: typeof defaultSetRatingSignature;
   callDeepSeek: (opts: {
     apiKey: string;
     model: string;
@@ -239,6 +249,9 @@ export interface GenerateDeps {
 const DEFAULT_DEPS: GenerateDeps = {
   getCachedDay: defaultGetCachedDay,
   setRecommendation: defaultSetRecommendation,
+  getRecommendation: defaultGetRecommendation,
+  getRatingSignature: defaultGetRatingSignature,
+  setRatingSignature: defaultSetRatingSignature,
   callDeepSeek: defaultCallDeepSeek,
   callClaudeCli: defaultCallClaudeCli,
   now: () => new Date(),
@@ -343,10 +356,46 @@ export async function generateTomorrowRecommendation(
       };
 
       await deps.setRecommendation(rec);
+      await deps.setRatingSignature(forDate, ratingSignature(forecast));
       console.log(`[recommendation] wrote rec for ${forDate} via ${provider}${tokensNote}`);
       return;
     }
     console.error(`[recommendation] ${provider} exhausted (2 attempts)${provider === "claude-cli" && providers.includes("deepseek") ? "; falling back to deepseek" : ""}`);
   }
   console.error("[recommendation] all providers failed; keeping existing cached rec");
+}
+
+// Morning recheck (cron at RECOMMENDATION_RECHECK_LOCAL_HOUR): regenerate today's
+// rec only if its rating categories drifted since generation. The chart re-rates
+// every 3h, so the 20:00 snapshot can contradict the morning chart (2026-06-20:
+// a recommended-green 08:00 hour drifted to red overnight). A missing rec is
+// generated (recovery for a missed evening run).
+export async function recheckTodayRecommendation(
+  deps: GenerateDeps = DEFAULT_DEPS,
+): Promise<void> {
+  const today = todayLocal(TIMEZONE, deps.now());
+  const forecast = await deps.getCachedDay(today);
+  if (!forecast) {
+    console.warn(`[recommendation] recheck: no cached forecast for ${today}; skipping`);
+    return;
+  }
+
+  const rec = await deps.getRecommendation(today);
+  if (!rec) {
+    console.log(`[recommendation] recheck: no rec for ${today}; generating`);
+    await generateTomorrowRecommendation(deps, today);
+    return;
+  }
+
+  const sigNow = ratingSignature(forecast);
+  const sigBase = await deps.getRatingSignature(today);
+  if (sigBase === sigNow) {
+    console.log(`[recommendation] recheck: ratings unchanged for ${today}; keeping rec`);
+    return;
+  }
+
+  console.log(
+    `[recommendation] recheck: ratings changed for ${today} (baseline ${sigBase ? "differs" : "missing"}); regenerating`,
+  );
+  await generateTomorrowRecommendation(deps, today);
 }
