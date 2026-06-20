@@ -59,4 +59,16 @@ export async function setRecommendation(rec: Recommendation): Promise<void> {
   await redis.set(key, JSON.stringify(rec), "EX", RECOMMENDATION_TTL_SECONDS);
 }
 
+// Baseline rating signature captured when a recommendation was generated — the
+// morning recheck compares today's live signature against it. Same key
+// namespace + TTL as the recommendation it belongs to.
+export async function getRatingSignature(date: string): Promise<string | null> {
+  return redis.get(`${REDIS_RECOMMENDATION_KEY_PREFIX}${date}:ratingsig`);
+}
+
+export async function setRatingSignature(date: string, sig: string): Promise<void> {
+  const key = `${REDIS_RECOMMENDATION_KEY_PREFIX}${date}:ratingsig`;
+  await redis.set(key, sig, "EX", RECOMMENDATION_TTL_SECONDS);
+}
+
 export { redis };

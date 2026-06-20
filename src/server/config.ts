@@ -83,6 +83,9 @@ export const WEATHER_FETCH_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
 export const TIDE_FETCH_LOCAL_HOUR = 0;
 export const RECOMMENDATION_LOCAL_HOUR = 20;
 export const RECOMMENDATION_LOCAL_MINUTE = 0;
+// Morning recheck: re-rate today and regenerate the report only if the rating
+// categories drifted since it was generated (cron.ts → recheckTodayRecommendation).
+export const RECOMMENDATION_RECHECK_LOCAL_HOUR = 5;
 
 // Redis — region-scoped so a region switch on the same server can't serve
 // stale data from the previous region. (Old un-scoped surf:* keys from
