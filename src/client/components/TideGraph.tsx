@@ -484,9 +484,12 @@ export function TideGraph({
 
   const containerClass = `tide-graph-container${enableZoom ? " zoom-enabled" : ""}`;
 
-  const hasCloseoutRisk = hourly.some((h) =>
-    SPOT_DISPLAY.some((s) => closeoutRisk(h, SPOT_THRESHOLDS[s.key]?.closeout)),
-  );
+  const sunriseFloor = Math.floor(parseHHmm(astronomy.sunrise));
+  const sunsetFloor = Math.floor(parseHHmm(astronomy.sunset));
+  const hasCloseoutRisk = hourly.some((h) => {
+    const isNight = h.hour < sunriseFloor || h.hour >= sunsetFloor;
+    return !isNight && SPOT_DISPLAY.some((s) => closeoutRisk(h, SPOT_THRESHOLDS[s.key]?.closeout));
+  });
 
   function handleContainerClick() {
     if (onExpand) onExpand();
