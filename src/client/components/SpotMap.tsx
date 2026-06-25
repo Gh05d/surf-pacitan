@@ -3,9 +3,14 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./SpotMap.css";
 import { ACTIVE_REGION } from "../../shared/active-region";
-import type { SpotName } from "../../shared/types";
+import type { SpotName, ForecastDay } from "../../shared/types";
+import type { TimeBlock } from "../blocks";
+import { averageBlock } from "../blocks";
+import { travelBearing, swellLabel, windLabel, windCategoryColor } from "../map-overlay";
 
 interface SpotMapProps {
+  day: ForecastDay;
+  block: TimeBlock | null;
   onSpotInfo: (spot: SpotName) => void;
 }
 
@@ -33,11 +38,29 @@ const DEFAULT_CENTER: L.LatLngExpression = ACTIVE_REGION.map.center;
 const DEFAULT_ZOOM = ACTIVE_REGION.map.zoom;
 const FLY_TO_ZOOM = DEFAULT_ZOOM + 1;
 
-export function SpotMap({ onSpotInfo }: SpotMapProps) {
+const [MAP_LAT, MAP_LNG] = ACTIVE_REGION.map.center as [number, number];
+// Two anchors over the bay water, just below the spot row.
+const SWELL_ANCHOR: L.LatLngExpression = [MAP_LAT - 0.006, MAP_LNG - 0.0045];
+const WIND_ANCHOR: L.LatLngExpression = [MAP_LAT - 0.006, MAP_LNG + 0.0045];
+
+function createArrowIcon(kind: "swell" | "wind", bearingDeg: number, label: string, color: string): L.DivIcon {
+  return L.divIcon({
+    className: `cond-arrow cond-arrow-${kind}`,
+    html:
+      `<div class="cond-arrow-glyph" style="--rot:${bearingDeg}deg;--arrow-color:${color}">↑</div>` +
+      `<div class="cond-arrow-label">${label}</div>`,
+    iconSize: [64, 48],
+    iconAnchor: [32, 24],
+  });
+}
+
+export function SpotMap({ day, block, onSpotInfo }: SpotMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const locationMarkerRef = useRef<L.Marker | null>(null);
+  const swellArrowRef = useRef<L.Marker | null>(null);
+  const windArrowRef = useRef<L.Marker | null>(null);
   const [activeSpot, setActiveSpot] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
@@ -83,8 +106,31 @@ export function SpotMap({ onSpotInfo }: SpotMapProps) {
       map.remove();
       mapRef.current = null;
       markersRef.current = [];
+      swellArrowRef.current = null;
+      windArrowRef.current = null;
     };
   }, []);
+
+  const overlay = block ? averageBlock(block.hours) : null;
+  const overlaySig = overlay
+    ? `${day.date}|${block!.start}|${overlay.swell.direction},${overlay.swell.height},${overlay.swell.period}|${overlay.wind.direction},${overlay.wind.speed}`
+    : "";
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !overlay) return;
+    const facing = ACTIVE_REGION.coastFacingDirection;
+
+    const swellIcon = createArrowIcon("swell", travelBearing(overlay.swell.direction), swellLabel(overlay.swell), "#38bdf8");
+    if (swellArrowRef.current) swellArrowRef.current.setIcon(swellIcon);
+    else swellArrowRef.current = L.marker(SWELL_ANCHOR, { icon: swellIcon, interactive: false }).addTo(map);
+
+    const windColor = windCategoryColor(overlay.wind.direction, facing);
+    const windIcon = createArrowIcon("wind", travelBearing(overlay.wind.direction), windLabel(overlay.wind), windColor);
+    if (windArrowRef.current) windArrowRef.current.setIcon(windIcon);
+    else windArrowRef.current = L.marker(WIND_ANCHOR, { icon: windIcon, interactive: false }).addTo(map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlaySig]);
 
   function handleSpotClick(index: number) {
     const map = mapRef.current;

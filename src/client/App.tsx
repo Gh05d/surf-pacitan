@@ -189,7 +189,7 @@ export function App() {
           />
         </div>
       </div>
-      <SpotMap onSpotInfo={setInfoSpot} />
+      <SpotMap day={day} block={selectedBlock} onSpotInfo={setInfoSpot} />
 
       <SpotInfoSheet spot={infoSpot} onClose={() => setInfoSpot(null)} />
     </div>
