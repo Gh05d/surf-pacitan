@@ -112,8 +112,8 @@ export function App() {
     );
   }
 
-  const dayLabel = formatDayLabel(currentDay!.date, dayIndex);
   const day = currentDay!;
+  const dayLabel = formatDayLabel(day.date, dayIndex);
   const blocks = buildDaylightBlocks(day.hourly, day.astronomy);
   const safeBlockIndex = Math.min(blockIndex, Math.max(0, blocks.length - 1));
   const selectedBlock = blocks[safeBlockIndex] ?? null;
