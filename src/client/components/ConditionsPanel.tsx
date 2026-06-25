@@ -13,6 +13,7 @@ import {
   type LimitingFactor,
   type SurfableInput,
 } from "../../shared/surfable";
+import { closeoutSpotsForHours } from "../../shared/closeout";
 import { Conditions } from "./Conditions";
 import { Weather } from "./Weather";
 import "./ConditionsPanel.css";
@@ -180,6 +181,14 @@ export function ConditionsPanel({ day, hourly, astronomy, isToday, bestWindowSta
   const currentBlock = blocks[safeIndex];
   const { swell, wind, weather } = averageBlock(currentBlock.hours);
 
+  const closeoutSpots = closeoutSpotsForHours(
+    currentBlock.hours,
+    SPOT_DISPLAY.map((s) => ({ id: s.key, closeout: SPOT_THRESHOLDS[s.key]?.closeout })),
+  );
+  const closeoutLabels = closeoutSpots
+    .map((id) => SPOT_DISPLAY.find((s) => s.key === id)?.label ?? id)
+    .join(", ");
+
   return (
     <div className="conditions-panel">
       <div className="conditions-panel-nav">
@@ -203,6 +212,12 @@ export function ConditionsPanel({ day, hourly, astronomy, isToday, bestWindowSta
       </div>
       <Conditions swell={swell} wind={wind} />
       <Weather weather={weather} />
+      {closeoutSpots.length > 0 && (
+        <div className="conditions-panel-closeout" role="note">
+          ⚠️ Close-out risk — long-period swell (~{swell.period}s) on a low tide;
+          waves may jack up and close out at {closeoutLabels}.
+        </div>
+      )}
       {/* Per-spot "why this color" rows for the selected block */}
       <div className="conditions-panel-spots">
         {SPOT_DISPLAY.map(({ key, abbr, emoji }) => {

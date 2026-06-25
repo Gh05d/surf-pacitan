@@ -156,3 +156,14 @@
     padding: 0.6rem 1.25rem 0.85rem;
   }
 }
+
+.conditions-panel-closeout {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(240, 168, 48, 0.12);
+  border: 1px solid rgba(240, 168, 48, 0.35);
+  color: #f0c068;
+  font-size: 12px;
+  line-height: 1.4;
+}
