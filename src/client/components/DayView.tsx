@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ForecastDay, HourlyData, SpotName } from "../../../shared/types";
+import type { TimeBlock } from "../blocks";
 import { SPOT_DISPLAY } from "../../shared/spots";
 import { SPOT_THRESHOLDS } from "../../shared/spot-config";
 import type { SpotThresholds } from "../../shared/spot-config";
@@ -19,6 +20,9 @@ import "./DayView.css";
 interface DayViewProps {
   day: ForecastDay;
   isToday: boolean;
+  blocks: TimeBlock[];
+  blockIndex: number;
+  onBlockChange: (index: number) => void;
   onSpotInfo: (spot: SpotName) => void;
 }
 
@@ -128,7 +132,7 @@ function SpotWindowRows({ windows, onSpotInfo }: { windows: SpotWindow[]; onSpot
   );
 }
 
-export function DayView({ day, isToday, onSpotInfo }: DayViewProps) {
+export function DayView({ day, isToday, blocks, blockIndex, onBlockChange, onSpotInfo }: DayViewProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
   const greenWindows = findWindows(day.hourly, "green");
@@ -148,10 +152,6 @@ export function DayView({ day, isToday, onSpotInfo }: DayViewProps) {
   const sunrisePercent = (sunriseMin / (24 * 60)) * 100;
   const sunsetPercent = (sunsetMin / (24 * 60)) * 100;
   const daylightWidth = sunsetPercent - sunrisePercent;
-
-  // Best window start hour for ConditionsPanel default
-  const primaryWindows = hasGreen ? greenWindows : yellowWindows;
-  const bestWindowStart = primaryWindows.length > 0 ? Math.min(...primaryWindows.map((w) => w.start)) : null;
 
   return (
     <div className="day-view">
@@ -215,10 +215,9 @@ export function DayView({ day, isToday, onSpotInfo }: DayViewProps) {
       {/* Conditions panel with time navigation */}
       <ConditionsPanel
         day={day}
-        hourly={day.hourly}
-        astronomy={day.astronomy}
-        isToday={isToday}
-        bestWindowStart={bestWindowStart}
+        blocks={blocks}
+        blockIndex={blockIndex}
+        onBlockChange={onBlockChange}
         onSpotInfo={onSpotInfo}
       />
 

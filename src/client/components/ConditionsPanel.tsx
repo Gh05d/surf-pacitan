@@ -1,7 +1,6 @@
-import { useState } from "react";
 import type { HourlyData, AstronomyData } from "../../shared/types";
 import type { ForecastDay, SpotName, SurfableRating } from "../../shared/types";
-import { buildDaylightBlocks, averageBlock, getDefaultBlockIndex, type TimeBlock } from "../blocks";
+import { averageBlock, type TimeBlock } from "../blocks";
 import { SPOT_DISPLAY } from "../../shared/spots";
 import { SPOT_THRESHOLDS } from "../../shared/spot-config";
 import type { SpotThresholds } from "../../shared/spot-config";
@@ -21,10 +20,9 @@ import "./ConditionsPanel.css";
 
 interface ConditionsPanelProps {
   day: ForecastDay;
-  hourly: HourlyData[];
-  astronomy: AstronomyData;
-  isToday: boolean;
-  bestWindowStart: number | null;
+  blocks: TimeBlock[];
+  blockIndex: number;
+  onBlockChange: (index: number) => void;
   onSpotInfo: (spot: SpotName) => void;
 }
 
@@ -67,12 +65,7 @@ function spotBlockSummary(
   return { rating, text: describeLimitingFactor(dominant[0], reps.get(dominant[0])!, thresholds) };
 }
 
-export function ConditionsPanel({ day, hourly, astronomy, isToday, bestWindowStart, onSpotInfo }: ConditionsPanelProps) {
-  const blocks = buildDaylightBlocks(hourly, astronomy);
-  const [blockIndex, setBlockIndex] = useState(() =>
-    getDefaultBlockIndex(blocks, isToday, bestWindowStart, new Date().getHours())
-  );
-
+export function ConditionsPanel({ day, blocks, blockIndex, onBlockChange, onSpotInfo }: ConditionsPanelProps) {
   if (blocks.length === 0) {
     return <div className="no-hourly">No conditions data available</div>;
   }
@@ -94,7 +87,7 @@ export function ConditionsPanel({ day, hourly, astronomy, isToday, bestWindowSta
       <div className="conditions-panel-nav">
         <button
           className="conditions-panel-btn"
-          onClick={() => setBlockIndex((i) => i - 1)}
+          onClick={() => onBlockChange(safeIndex - 1)}
           disabled={safeIndex === 0}
           aria-label="Previous time block"
         >
@@ -103,7 +96,7 @@ export function ConditionsPanel({ day, hourly, astronomy, isToday, bestWindowSta
         <div className="conditions-panel-time">{currentBlock.label}</div>
         <button
           className="conditions-panel-btn"
-          onClick={() => setBlockIndex((i) => i + 1)}
+          onClick={() => onBlockChange(safeIndex + 1)}
           disabled={safeIndex === blocks.length - 1}
           aria-label="Next time block"
         >

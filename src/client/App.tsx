@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { SpotName } from "../shared/types";
 import { useForecast } from "./hooks/useForecast";
 import { Header } from "./components/Header";
@@ -8,6 +8,7 @@ import { RecommendationCard } from "./components/RecommendationCard";
 import { NowBanner } from "./components/NowBanner";
 import { SpotInfoSheet } from "./components/SpotInfoSheet";
 import { useRecommendation } from "./hooks/useRecommendation";
+import { buildDaylightBlocks, getDefaultBlockIndex, bestWindowStartHour } from "./blocks";
 import "./App.css";
 
 function formatDayLabel(dateStr: string, index: number): string {
@@ -25,6 +26,19 @@ export function App() {
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const [animating, setAnimating] = useState(false);
   const [infoSpot, setInfoSpot] = useState<SpotName | null>(null);
+  const [blockIndex, setBlockIndex] = useState(0);
+  const currentDay = days.length ? days[Math.min(dayIndex, days.length - 1)] : undefined;
+
+  // Reset the conditions block to the day's default when the displayed day changes.
+  useEffect(() => {
+    if (!currentDay) return;
+    const blocks = buildDaylightBlocks(currentDay.hourly, currentDay.astronomy);
+    setBlockIndex(
+      getDefaultBlockIndex(blocks, dayIndex === 0, bestWindowStartHour(currentDay.hourly), new Date().getHours()),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDay?.date, dayIndex]);
+
   const swipeStartX = useRef(0);
   const multiTouchActive = useRef(false);
 
@@ -98,8 +112,11 @@ export function App() {
     );
   }
 
-  const currentDay = days[Math.min(dayIndex, days.length - 1)];
-  const dayLabel = formatDayLabel(currentDay.date, dayIndex);
+  const dayLabel = formatDayLabel(currentDay!.date, dayIndex);
+  const day = currentDay!;
+  const blocks = buildDaylightBlocks(day.hourly, day.astronomy);
+  const safeBlockIndex = Math.min(blockIndex, Math.max(0, blocks.length - 1));
+  const selectedBlock = blocks[safeBlockIndex] ?? null;
 
   return (
     <div
@@ -126,7 +143,7 @@ export function App() {
 
         <div className="day-nav-label">
           <div className="day-nav-name">{dayLabel}</div>
-          <div className="day-nav-date">{currentDay.date}</div>
+          <div className="day-nav-date">{day.date}</div>
         </div>
 
         <button
@@ -152,7 +169,7 @@ export function App() {
       </div>
 
       {/* Best remaining window from the current hour (today only) */}
-      {dayIndex === 0 && <NowBanner day={currentDay} />}
+      {dayIndex === 0 && <NowBanner day={day} />}
 
       {/* Main content */}
       <div className="day-content-outer">
@@ -161,7 +178,15 @@ export function App() {
           transform: slideDir === "left" ? "translateX(-30%)" : slideDir === "right" ? "translateX(30%)" : "translateX(0)",
           opacity: animating ? 0 : 1,
         }}>
-          <DayView key={currentDay.date} day={currentDay} isToday={dayIndex === 0} onSpotInfo={setInfoSpot} />
+          <DayView
+            key={day.date}
+            day={day}
+            isToday={dayIndex === 0}
+            blocks={blocks}
+            blockIndex={safeBlockIndex}
+            onBlockChange={setBlockIndex}
+            onSpotInfo={setInfoSpot}
+          />
         </div>
       </div>
       <SpotMap onSpotInfo={setInfoSpot} />
