@@ -62,9 +62,32 @@
     .spot-marker {
       background: none;
       border: none;
-      font-size: 24px;
+    }
+
+    .spot-marker-emoji {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      margin: 2px;
+      border-radius: 50%;
+      font-size: 20px;
       line-height: 1;
       filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+
+      &.rating-green { box-shadow: 0 0 0 2px #2dd4a8, 0 0 8px rgba(45, 212, 168, 0.6); }
+      &.rating-yellow { box-shadow: 0 0 0 2px #f0a830, 0 0 8px rgba(240, 168, 48, 0.55); }
+      &.rating-red { box-shadow: 0 0 0 2px #e06050, 0 0 8px rgba(224, 96, 80, 0.5); }
+    }
+
+    .spot-marker-badge {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      font-size: 13px;
+      line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
     }
 
     /* User location marker */

@@ -3,7 +3,10 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./SpotMap.css";
 import { ACTIVE_REGION } from "../../shared/active-region";
-import type { SpotName, ForecastDay } from "../../shared/types";
+import type { SpotName, ForecastDay, SurfableRating } from "../../shared/types";
+import { minQuality } from "../../shared/surfable";
+import { closeoutSpotsForHours } from "../../shared/closeout";
+import { SPOT_THRESHOLDS } from "../../shared/spot-config";
 import type { TimeBlock } from "../blocks";
 import { averageBlock } from "../blocks";
 import { travelBearing, swellLabel, windLabel, windCategoryColor } from "../map-overlay";
@@ -14,13 +17,15 @@ interface SpotMapProps {
   onSpotInfo: (spot: SpotName) => void;
 }
 
-function createSpotIcon(emoji: string) {
+function createSpotIcon(emoji: string, rating?: SurfableRating, closeout = false): L.DivIcon {
+  const ring = rating ? ` rating-${rating}` : "";
+  const badge = closeout ? `<span class="spot-marker-badge">⚠️</span>` : "";
   return L.divIcon({
     className: "spot-marker",
-    html: emoji,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
+    html: `<span class="spot-marker-emoji${ring}">${emoji}</span>${badge}`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18],
   });
 }
 
@@ -112,8 +117,23 @@ export function SpotMap({ day, block, onSpotInfo }: SpotMapProps) {
   }, []);
 
   const overlay = block ? averageBlock(block.hours) : null;
+
+  const ratings: Record<string, SurfableRating> = {};
+  if (block) for (const s of SPOTS) ratings[s.key] = minQuality(block.hours.map((h) => h.surfable[s.key]));
+  const closeoutIds = block
+    ? new Set(
+        closeoutSpotsForHours(
+          block.hours,
+          SPOTS.map((s) => ({ id: s.key, closeout: SPOT_THRESHOLDS[s.key]?.closeout })),
+        ),
+      )
+    : new Set<string>();
+
   const overlaySig = overlay
-    ? `${day.date}|${block!.start}|${overlay.swell.direction},${overlay.swell.height},${overlay.swell.period}|${overlay.wind.direction},${overlay.wind.speed}`
+    ? `${day.date}|${block!.start}` +
+      `|${overlay.swell.direction},${overlay.swell.height},${overlay.swell.period}` +
+      `|${overlay.wind.direction},${overlay.wind.speed}` +
+      `|${SPOTS.map((s) => ratings[s.key]).join("")}|${[...closeoutIds].sort().join(",")}`
     : "";
 
   useEffect(() => {
@@ -135,6 +155,10 @@ export function SpotMap({ day, block, onSpotInfo }: SpotMapProps) {
     const windIcon = createArrowIcon("wind", travelBearing(overlay.wind.direction), windLabel(overlay.wind), windColor);
     if (windArrowRef.current) windArrowRef.current.setIcon(windIcon);
     else windArrowRef.current = L.marker(WIND_ANCHOR, { icon: windIcon, interactive: false }).addTo(map);
+
+    SPOTS.forEach((spot, i) => {
+      markersRef.current[i]?.setIcon(createSpotIcon(spot.emoji, ratings[spot.key], closeoutIds.has(spot.key)));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlaySig]);
 
