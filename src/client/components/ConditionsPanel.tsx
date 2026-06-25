@@ -214,8 +214,8 @@ export function ConditionsPanel({ day, hourly, astronomy, isToday, bestWindowSta
       <Weather weather={weather} />
       {closeoutSpots.length > 0 && (
         <div className="conditions-panel-closeout" role="note">
-          ⚠️ Close-out risk — long-period swell (~{swell.period}s) on a low tide;
-          waves may jack up and close out at {closeoutLabels}.
+          ⚠️ Close-out risk — long-period swell (~{swell.period}s); waves may
+          jack up and close out at {closeoutLabels}.
         </div>
       )}
       {/* Per-spot "why this color" rows for the selected block */}
