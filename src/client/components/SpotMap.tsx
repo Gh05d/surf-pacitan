@@ -118,7 +118,13 @@ export function SpotMap({ day, block, onSpotInfo }: SpotMapProps) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !overlay) return;
+    if (!map || !overlay) {
+      swellArrowRef.current?.remove();
+      swellArrowRef.current = null;
+      windArrowRef.current?.remove();
+      windArrowRef.current = null;
+      return;
+    }
     const facing = ACTIVE_REGION.coastFacingDirection;
 
     const swellIcon = createArrowIcon("swell", travelBearing(overlay.swell.direction), swellLabel(overlay.swell), "#38bdf8");
