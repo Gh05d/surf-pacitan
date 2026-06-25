@@ -4,6 +4,8 @@ import "uplot/dist/uPlot.min.css";
 import "./TideGraph.css";
 import type { HourlyData, TideExtreme, AstronomyData, SurfableRating } from "../../../shared/types";
 import { SPOT_DISPLAY } from "../../shared/spots";
+import { closeoutRisk } from "../../shared/closeout";
+import { SPOT_THRESHOLDS } from "../../shared/spot-config";
 
 interface TideGraphProps {
   hourly: HourlyData[];
@@ -48,6 +50,30 @@ function formatSecHHmm(s: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+// Diagonal caution hatch drawn OVER a strip cell — the rating color stays
+// visible beneath. Clipped to the cell so lines never bleed past u.bbox.
+function drawCloseoutHatch(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.strokeStyle = "rgba(12, 14, 22, 0.6)";
+  ctx.lineWidth = 1.5;
+  for (let d = -h; d < w; d += 5) {
+    ctx.beginPath();
+    ctx.moveTo(x + d, y + h);
+    ctx.lineTo(x + d + h, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 export function TideGraph({
   hourly,
   tideExtremes,
@@ -86,6 +112,8 @@ export function TideGraph({
       }
       ratingsBySpot.set(spot.key, m);
     }
+
+    const hourlyByHour = new Map(hourly.map((h) => [h.hour, h]));
 
     const sunriseHour = parseHHmm(astronomy.sunrise);
     const sunsetHour = parseHHmm(astronomy.sunset);
@@ -270,6 +298,13 @@ export function TideGraph({
                   ctx.fillStyle = RATING_COLORS[rating];
                 }
                 ctx.fillRect(xStart, stripY, xEnd - xStart, STRIP_HEIGHT);
+                // Close-out risk: caution hatch over daylight cells (color shows through)
+                if (!isNight) {
+                  const hd = hourlyByHour.get(hour);
+                  if (hd && closeoutRisk(hd, SPOT_THRESHOLDS[spot.key]?.closeout)) {
+                    drawCloseoutHatch(ctx, xStart, stripY, xEnd - xStart, STRIP_HEIGHT);
+                  }
+                }
               }
 
               // Abbreviation label in the left gutter
@@ -449,6 +484,10 @@ export function TideGraph({
 
   const containerClass = `tide-graph-container${enableZoom ? " zoom-enabled" : ""}`;
 
+  const hasCloseoutRisk = hourly.some((h) =>
+    SPOT_DISPLAY.some((s) => closeoutRisk(h, SPOT_THRESHOLDS[s.key]?.closeout)),
+  );
+
   function handleContainerClick() {
     if (onExpand) onExpand();
   }
@@ -485,6 +524,12 @@ export function TideGraph({
         role={onExpand ? "button" : undefined}
         tabIndex={onExpand ? 0 : undefined}
       />
+      {hasCloseoutRisk && (
+        <div className="tide-graph-closeout-legend">
+          <span className="tide-graph-closeout-swatch" aria-hidden="true" />
+          close-out risk
+        </div>
+      )}
     </div>
   );
 }
