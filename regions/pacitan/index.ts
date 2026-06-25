@@ -84,6 +84,7 @@ export const PACITAN: RegionConfig = {
           onshore: { greenMax: 10, yellowMax: 20 },
         },
         fallingTideCap: true,
+        closeout: { tideHeightMax: 0.1, periodMin: 9, swellHeightMin: 0.6 },
       },
     },
     {
@@ -110,6 +111,7 @@ export const PACITAN: RegionConfig = {
           onshore: { greenMax: 10, yellowMax: 20 },
         },
         fallingTideCap: true,
+        closeout: { tideHeightMax: 0.1, periodMin: 9, swellHeightMin: 0.6 },
       },
     },
   ],

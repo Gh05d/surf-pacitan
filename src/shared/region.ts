@@ -117,6 +117,14 @@ export function validateRegionConfig(config: RegionConfig): string[] {
         errors.push(`${s.id}: wind.${cat} thresholds inverted`);
       }
     }
+    if (t.closeout) {
+      if (!(t.closeout.periodMin > 0)) {
+        errors.push(`${s.id}: closeout.periodMin must be > 0`);
+      }
+      if (t.closeout.swellHeightMin != null && !(t.closeout.swellHeightMin >= 0)) {
+        errors.push(`${s.id}: closeout.swellHeightMin must be >= 0`);
+      }
+    }
   }
 
   return errors;

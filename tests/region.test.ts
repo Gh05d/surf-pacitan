@@ -178,3 +178,33 @@ describe("region registry", () => {
     });
   });
 });
+
+describe("validateRegionConfig — closeout", () => {
+  test("the Pacitan pack (with closeout config) validates clean", () => {
+    expect(validateRegionConfig(PACITAN)).toEqual([]);
+  });
+
+  test("rejects closeout.periodMin <= 0", () => {
+    const bad: RegionConfig = {
+      ...PACITAN,
+      spots: PACITAN.spots.map((s, i) =>
+        i === 0
+          ? { ...s, thresholds: { ...s.thresholds, closeout: { tideHeightMax: 0.1, periodMin: 0 } } }
+          : s,
+      ),
+    };
+    expect(validateRegionConfig(bad)).toContain(`${PACITAN.spots[0].id}: closeout.periodMin must be > 0`);
+  });
+
+  test("rejects negative closeout.swellHeightMin", () => {
+    const bad: RegionConfig = {
+      ...PACITAN,
+      spots: PACITAN.spots.map((s, i) =>
+        i === 0
+          ? { ...s, thresholds: { ...s.thresholds, closeout: { tideHeightMax: 0.1, periodMin: 9, swellHeightMin: -1 } } }
+          : s,
+      ),
+    };
+    expect(validateRegionConfig(bad)).toContain(`${PACITAN.spots[0].id}: closeout.swellHeightMin must be >= 0`);
+  });
+});
