@@ -351,9 +351,14 @@ export async function generateTomorrowRecommendation(
         validation.value.bestWindow,
         SPOT_THRESHOLDS[validation.value.bestSpot]?.closeout,
       );
+      // Prepend (not append) the deterministic close-out warning so it
+      // survives the 3-warning cap even when the model already filled all 3
+      // slots — observed live 2026-06-25, where appending dropped it. It also
+      // earns top billing: for these sandbar spots a close-out is the most
+      // actionable risk.
       const warnings =
         closeoutWarn && !validation.value.warnings.includes(closeoutWarn)
-          ? [...validation.value.warnings, closeoutWarn].slice(0, 3)
+          ? [closeoutWarn, ...validation.value.warnings].slice(0, 3)
           : validation.value.warnings;
 
       const rec: Recommendation = {
