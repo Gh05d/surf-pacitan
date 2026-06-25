@@ -2,6 +2,7 @@ import type { ForecastDay, SpotRatings, SpotName, TideExtreme } from "../shared/
 import { computeCandidateWindows, type CandidateWindow } from "./candidates";
 import { ACTIVE_REGION } from "../shared/active-region";
 import { tomorrowLocal, todayLocal } from "../shared/time";
+import { closeoutWarningForPick } from "../shared/closeout";
 
 export interface PayloadHourly {
   hour: number;
@@ -213,6 +214,7 @@ import {
   RECOMMENDATION_CLI_MODEL,
   RECOMMENDATION_CLI_TIMEOUT_MS,
   TIMEZONE,
+  SPOT_THRESHOLDS,
 } from "./config";
 import type { Recommendation } from "../shared/types";
 
@@ -343,6 +345,17 @@ export async function generateTomorrowRecommendation(
         continue;
       }
 
+      const closeoutWarn = closeoutWarningForPick(
+        forecast,
+        validation.value.bestSpot,
+        validation.value.bestWindow,
+        SPOT_THRESHOLDS[validation.value.bestSpot]?.closeout,
+      );
+      const warnings =
+        closeoutWarn && !validation.value.warnings.includes(closeoutWarn)
+          ? [...validation.value.warnings, closeoutWarn].slice(0, 3)
+          : validation.value.warnings;
+
       const rec: Recommendation = {
         forDate,
         generatedAt: deps.now().toISOString(),
@@ -350,7 +363,7 @@ export async function generateTomorrowRecommendation(
         bestWindow: validation.value.bestWindow,
         headline: validation.value.headline,
         reasoning: validation.value.reasoning,
-        warnings: validation.value.warnings,
+        warnings,
         ...(validation.value.overrideReason ? { overrideReason: validation.value.overrideReason } : {}),
         modelUsed,
       };
